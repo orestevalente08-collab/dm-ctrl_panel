@@ -1,0 +1,27 @@
+{
+  "name": "dm-ctrl_panel",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orestevalente08-collab/dm-ctrl_panel.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/orestevalente08-collab/dm-ctrl_panel/issues"
+  },
+  "homepage": "https://github.com/orestevalente08-collab/dm-ctrl_panel#readme",
+  "devDependencies": {
+    "electron": "^45.2.1"
+  },
+  "dependencies": {
+    "mammoth": "^1.13.0"
+  }
+}
