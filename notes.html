@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+
+<html lang = "eng">
+    <head>
+        <meta charset = "UTF-8">
+        <title>DM's Notes</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 5px;
+                background: #181820;
+                color: #eee;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                display: flex;
+                flex-direction: column;
+                height: 94vh;
+                gap: 12px;
+            }
+
+            .controls { /* upper control panel */
+                display: flex;
+                gap: 15px;
+                background: #232330;
+                padding: 10px 15px;
+                border-radius: 8px;
+                align-items: center;
+            }
+
+            label {
+                font-weight: bold;
+                font-size: 14px;
+                color: #bbb;
+            }
+
+            select {
+                background: #323244;
+                color: #fff;
+                border: 1px solid #505068;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 14px;
+                cursor: pointer;
+            }
+
+            .notes-display {
+                flex: 1;
+                background: #20202c;
+                border: 1px solid #323244;
+                border-radius: 8px;
+                padding: 20px;
+                overflow-y: auto;   /* adding scroll fi text is long */
+            }
+
+            .notes-point {
+                background: #292938;
+                margin-bottom: 8px;
+                padding: 10px 14px;
+                border-left: 4px solid #6366f1;
+                border-radius: 4px;
+                line-height: 1.5;
+            }
+        </style>
+    </head>
+    <body>
+
+        <div class="controls">
+            <label for="season-select">Season:</label>
+            <select id="season-select"></select>
+
+            <label for="session-select">Session:</label>
+            <select id="session-select"></select>
+        </div>
+
+        <div class="notes-display" id="notes-display">
+            <p style="color: #777;">Select a Season and a Session...</p>
+        </div>
+
+        <script>
+            const { ipcRender } = require('electron');
+
+            let campaign = {};
+            const seasonSelect = document.getElementById('season-select');
+            const sessionSelect = document.getElementById('session-select');
+            const notesDisplay = document.getElementById('notes-display');
+
+            ipcRender.on('init-notes', (event, data) => {
+                campaign = data;
+                populateSeason();
+            });
+
+            function populateSeason() {
+                seasonSelect.innerHTML = '';
+                const seasons = Object.keys(campaign);
+
+                seasons.forEach(season => {
+                    const option = document.createElement('option');
+                    option.value = season;
+                    option.textContent = season;
+                    seasonSelect.appendChild(option);
+                });
+
+                if(seasons.length > 0) {
+                    updateSessions(seasons[0]);
+                }
+            }
+
+            function updateSessions(season) {
+                sessionSelect.innerHTML = '';
+                const sessions = Object.keys(campaign[season] || {});
+
+                sessions.forEach(session => {
+                    const option = document.createElement('option');
+                    option.value = session;
+                    option.textContent = session;
+                    sessionSelect.appendChild(option);
+                });
+
+                if (session.length > 0) {
+                    displayNotes(season, sessions[0]);
+                } else {
+                    notesDisplay.innerHTML = '<p>Sessions not found.</p>'
+                }
+            }
+            
+            function displayNotes(season, session) {
+                notesDisplay.innerHTML = '';
+                const points = (campaign[season] && campaign[season][session]) || [];
+
+                if (points.length === 0) {
+                    notesDisplay.innerHTML = '<p style="color: #777;">Note not found.</p>';
+                    return;
+                }
+
+                points.forEach(point => {
+                    const div = document.createElement('div');
+                    div.className = 'note-point';
+                    div.textContent = point;
+                    notesDisplay.appendChild(div);
+                });
+            }
+
+            seasonSelect.addEventListener('change', (e) => {
+                updateSessions(e.target.value);
+            });
+
+            sessionSelect.addEventListener('change', (e) => {
+                displayNotes(seasonSelect.value, e.target.value);
+            });
+        </script>
+    </body>
+</html>
