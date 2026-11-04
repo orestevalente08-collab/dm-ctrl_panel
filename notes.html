@@ -5,7 +5,7 @@
         <meta charset = "UTF-8">
         <title>DM's Notes</title>
         <style>
-            body {
+            body {  /* main panel */
                 margin: 0;
                 padding: 5px;
                 background: #181820;
@@ -36,10 +36,22 @@
                 background: #323244;
                 color: #fff;
                 border: 1px solid #505068;
-                padding: 6px 12px;
+                padding: 8px 12px;
                 border-radius: 6px;
                 font-size: 14px;
                 cursor: pointer;
+                outline: none;
+            }
+
+            #season-select {
+                width: 150px;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                overflow: hidden;
+            }
+
+            #session-select {
+                width: 100px;
             }
 
             .notes-display {
@@ -48,7 +60,7 @@
                 border: 1px solid #323244;
                 border-radius: 8px;
                 padding: 20px;
-                overflow-y: auto;   /* adding scroll fi text is long */
+                overflow-y: auto;   /* adding scroll if text is long */
             }
 
             .notes-point {
@@ -76,14 +88,18 @@
         </div>
 
         <script>
-            const { ipcRender } = require('electron');
+            const { ipcRenderer } = require('electron');
 
             let campaign = {};
             const seasonSelect = document.getElementById('season-select');
             const sessionSelect = document.getElementById('session-select');
             const notesDisplay = document.getElementById('notes-display');
 
-            ipcRender.on('init-notes', (event, data) => {
+            window.addEventListener('DOMContentLoaded', () => {
+                ipcRenderer.send('notes-window-ready');
+            });
+
+            ipcRenderer.on('init-notes', (event, data) => {
                 campaign = data;
                 populateSeason();
             });
@@ -100,7 +116,9 @@
                 });
 
                 if(seasons.length > 0) {
-                    updateSessions(seasons[0]);
+                    const defaultSeason = seasons.find(s => s.toLowerCase().includes('stagione 1')) || seasons[0];
+                    seasonSelect.value = defaultSeason;
+                    updateSessions(defaultSeason);
                 }
             }
 
@@ -115,10 +133,10 @@
                     sessionSelect.appendChild(option);
                 });
 
-                if (session.length > 0) {
+                if (sessions.length > 0) {
                     displayNotes(season, sessions[0]);
                 } else {
-                    notesDisplay.innerHTML = '<p>Sessions not found.</p>'
+                    notesDisplay.innerHTML = '<p style="color #777">Sessions not found.</p>'
                 }
             }
             
@@ -134,6 +152,15 @@
                 points.forEach(point => {
                     const div = document.createElement('div');
                     div.className = 'note-point';
+
+                    if (/^gruppo [a-z]:/i.test(point)) {
+                        div.style.borderLeftColor = '#f59e0b';
+                        div.style.fontWeight = 'bold';
+                        div.style.fontSize = '15px';
+                    } else if (/^intro:/i.test(point)) {
+                        div.style.borderLeftColor = '#10b981';
+                    }
+
                     div.textContent = point;
                     notesDisplay.appendChild(div);
                 });

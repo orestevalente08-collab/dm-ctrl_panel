@@ -10,35 +10,43 @@ let notesWindow; // the window with the notes of the campaign
 
 // ---------------------------------------- FUNCTION FOR NOTES WINDOW -------------------------------------------------
 
+let lastCampaignData = null;
+
 function parseCampaignNotes (rawText) {
-    const lines = rawText.split('\n').map(line => line.trim()).filter(line => line.lenght > 0); //dividing the lines of the text
+    const lines = rawText.split('\n').map(line => line.trim()).filter(line => line.length > 0); //dividing the lines of the text
 
     const campaign = {};    //initializing the matrix and the raws and columns
-    let currentSeason = "General Notes";
-    let currentSession = "Intro";
+    let currentSeason = null;
+    let currentSession = null;
 
-    campaign[currentSeason] = {};
-    campaign[currentSeason][currentSession] = {};
-
-    for (const line in lines) { //for all lines in the text
+    for (const line of lines) { //for all lines in the text
 
         if(/^stagione/i.test(line)) {   //searching a line starting with Stagione
             currentSeason = line;
-            if(!campaign[currentSeason]) {
-                campaign[currentSeason] = {};
-            }
-            currentSession = "General"; 
-            campaign[currentSeason][currentSession] = [];
+            campaign[currentSeason] = {};
+            currentSession = null; 
         }
 
-        else if (/^sessione/i.text(line)) { //searching a line starting with Sessione
-            currentSession = line;
+        else if (/^sessione/i.test(line)) { //searching a line starting with Sessione
+            currentSession = line.replace(/:$/, '').trim();
+            if(!currentSeason) {
+                currentSeason = "Initial Notes";
+                campaign[currentSeason] = {};
+            }
             if(!campaign[currentSeason][currentSession]) {
                 campaign[currentSeason][currentSession] = [];
             }
         }
 
         else {  //adding normal lines to the right season and session
+            if(!currentSeason) {
+                currentSeason = "Initial Notes";
+                campaign[currentSeason] = {};
+            }
+            if(!currentSession) {
+                currentSession = "General";
+                campaign[currentSeason][currentSession] = [];
+            }
             campaign[currentSeason][currentSession].push(line);
         }
     }
@@ -50,9 +58,11 @@ function parseCampaignNotes (rawText) {
 
 function createWindow() {   // window's maker
 
-    const win = new BrowserWindow ({
+    mainWindow = new BrowserWindow ({
+        x: 450,
+        y: 10,
         width: 650,
-        height: 300,
+        height: 150,
         alwaysOnTop: false,  // the window doesn't hide behind other windows
         resizable: true,    // the size can be changed using the mouse
         title: "DM-CTRLPanel",
@@ -62,14 +72,14 @@ function createWindow() {   // window's maker
         }
     });
 
-    win.loadFile('index.html'); //initializing an html file for graphic
+    mainWindow.loadFile('index.html'); //initializing an html file for graphic
 }
 
 app.whenReady().then(createWindow); // starting app
 
 app.on('window-all-closed', () => { //closing app
     if(process.platform !== 'darwin') { //to use all os
-        app.quit;
+        app.quit();
     }
 });
 
@@ -95,12 +105,17 @@ ipcMain.on('open-notes-dialog', async () => {
 
         const { value: text } = await mammoth.extractRawText({ path: filePath });   //extracting the text from the file
 
-        const campaignData = parseCampaignNotes(text);  //calling the function to divide the text
+        lastCampaignData = parseCampaignNotes(text);  //calling the function to divide the text
 
-        if (!notesWindow || notesWindow.isDestroyed()) {    //making the window
+        if (notesWindow && !notesWindow.isDestroyed()) {    //making the window
+            notesWindow.focus();
+            notesWindow.webContents.send('init-notes', lastCampaignData);
+        } else {
             notesWindow = new BrowserWindow({
-                width: 800,
-                height: 600,
+                x: 10,
+                y: 10,
+                width: 450,
+                height: 420,
                 title: "Campaign Notes",
                 webPreferences: {
                     nodeIntegration: true,
@@ -109,17 +124,14 @@ ipcMain.on('open-notes-dialog', async () => {
             });
 
             notesWindow.loadFile('notes.html'); //calling note.html
-
-            notesWindow.webContents.on('did-finish-load', () => {   //when the page finished loading
-                notesWindow.webContents.send('init-notes', campaignData);   //send the data to the page
-            });
-        } else {    //if the window already exists
-            notesWindow.focus();    //the window jump out
-            notesWindow.webContents.send('init-notes', campaignData);   //send the data to the page
         }
-
     } catch (err) {
         console.error("ERROR: not reading file:", err); //founding error
     }
+});
 
+ipcMain.on('notes-window-ready', (event) => {   //when notes.html is ready, send the data
+    if (lastCampaignData) {
+        event.reply('init-notes', lastCampaignData);
+    }
 });
