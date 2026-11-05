@@ -32,7 +32,7 @@
                 color: #bbb;
             }
 
-            select {
+            select {    /* scrolling menu */
                 background: #323244;
                 color: #fff;
                 border: 1px solid #505068;
@@ -43,33 +43,63 @@
                 outline: none;
             }
 
-            #season-select {
-                width: 150px;
+            #season-select { /* season's menu */
+                width: 80px;
                 text-overflow: ellipsis;
                 white-space: nowrap;
                 overflow: hidden;
             }
 
-            #session-select {
-                width: 100px;
+            #session-select { /* session's menu */
+                width: 60px;
             }
 
-            .notes-display {
+            .btn-word { /* button to open Word */
+                margin-left: auto;
+                background: #1e3a8a;
+                color: #fff;
+                border: 1px solid #3b82f6;
+                padding: 7px 14px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 13px;
+                transition: background 0.2s;
+            }
+
+            .btn-word:hover {
+                background: #2563eb;
+            }
+
+            .notes-display {    /* display with notes */
                 flex: 1;
                 background: #20202c;
                 border: 1px solid #323244;
                 border-radius: 8px;
-                padding: 20px;
+                padding: 20px 25px;
                 overflow-y: auto;   /* adding scroll if text is long */
+                line-height: 1.6;
             }
 
-            .notes-point {
+            .note-card {    /* notes block's style */
                 background: #292938;
-                margin-bottom: 8px;
-                padding: 10px 14px;
+                margin-bottom: 12px;
+                padding: 12px 16px;
                 border-left: 4px solid #6366f1;
-                border-radius: 4px;
-                line-height: 1.5;
+                border-radius: 6px;
+            }
+
+            .note-card ul, .note-card ol {  /* keeping original style */
+                margin: 8px 0;
+                padding-left: 24px;
+            }
+
+            .note-card li {
+                margin-bottom: 6px;
+            }
+
+            .note-card strong { /* pointing out bold strings */
+                color: #60a5fa;
             }
         </style>
     </head>
@@ -81,10 +111,12 @@
 
             <label for="session-select">Session:</label>
             <select id="session-select"></select>
+
+            <button id="btn-open-word" class="btn-word">Modify with Word</button>
         </div>
 
         <div class="notes-display" id="notes-display">
-            <p style="color: #777;">Select a Season and a Session...</p>
+            <p style="color: #777;">Loading notes...</p>
         </div>
 
         <script>
@@ -94,17 +126,70 @@
             const seasonSelect = document.getElementById('season-select');
             const sessionSelect = document.getElementById('session-select');
             const notesDisplay = document.getElementById('notes-display');
+            const btnOpenWord = document.getElementById('btn-open-word');
 
-            window.addEventListener('DOMContentLoaded', () => {
+            btnOpenWord.addEventListener('click', () => {   //clicking the button, it send the signal to open Word
+                ipcRenderer.send('open-in-word');
+            });
+
+            window.addEventListener('DOMContentLoaded', () => { //when the window is ready, load the ntoes
                 ipcRenderer.send('notes-window-ready');
             });
 
-            ipcRenderer.on('init-notes', (event, data) => {
-                campaign = data;
+            ipcRenderer.on('init-notes-html', (event, rawHtml) => { //loading the notes converted by mammoth
+                parseHtmltoCampaign(rawHtml);
                 populateSeason();
             });
 
+            function parseHtmltoCampaign(rawHtml) {
+                campaign = {};
+                let currentSeason = null;
+                let currentSession = null;
+
+                const tempDiv = document.createElement('div');  /* temporary box for html */
+                tempDiv.innerHTML = rawHtml;
+
+                const elements = Array.from(tempDiv.children);
+
+                elements.forEach(el => {
+                    const text = el.textContent.trim();
+                    if (!text) return;  // jumping void elements
+
+                    if (/^stagione/i.test(text)) {  //controling seasons
+                        currentSeason = text;
+                        campaign[currentSeason] = {};
+                        currentSession = null;
+                    }
+
+                    else if (/^sessione/i.test(text)) { //controling sessions
+                        currentSession = text.replace(/:$/, '').trim();
+                        if (!currentSeason) {
+                            currentSeason = "Note Iniziali";
+                            campaign[currentSeason] = {};
+                        }
+                        if (!campaign[currentSeason][currentSession]) {
+                            campaign[currentSeason][currentSession] = [];
+                        }
+                    }
+
+                    else {  //all other strings
+                        if (!currentSeason) {
+                            currentSeason = "Note Iniziali";
+                            campaign[currentSeason] = {};
+                        }
+                        if (!currentSession) {
+                            currentSession = "Generale";
+                            campaign[currentSeason][currentSession] = [];
+                        }
+                        
+                        campaign[currentSeason][currentSession].push(el.outerHTML); //saving the original style
+                    }
+
+                });
+            }
+
             function populateSeason() {
+                const currentSelectedSeason = seasonSelect.value;
                 seasonSelect.innerHTML = '';
                 const seasons = Object.keys(campaign);
 
@@ -116,13 +201,16 @@
                 });
 
                 if(seasons.length > 0) {
-                    const defaultSeason = seasons.find(s => s.toLowerCase().includes('stagione 1')) || seasons[0];
+                    const defaultSeason = seasons.includes(currentSelectedSeason)   /* keeping the selected season */
+                        ? currentSelectedSeason
+                        : (seasons.find(s => s.toLowerCase().includes('stagione 1')) || seasons[0]);
                     seasonSelect.value = defaultSeason;
                     updateSessions(defaultSeason);
                 }
             }
 
             function updateSessions(season) {
+                const currentSelectedSession = sessionSelect.value;
                 sessionSelect.innerHTML = '';
                 const sessions = Object.keys(campaign[season] || {});
 
@@ -134,7 +222,12 @@
                 });
 
                 if (sessions.length > 0) {
-                    displayNotes(season, sessions[0]);
+                    const defaultSession = sessions.includes(currentSelectedSession)
+                        ? currentSelectedSession
+                        : sessions[0];
+
+                    sessionSelect.value = defaultSession;
+                    displayNotes(season, defaultSession);
                 } else {
                     notesDisplay.innerHTML = '<p style="color #777">Sessions not found.</p>'
                 }
@@ -151,17 +244,13 @@
 
                 points.forEach(point => {
                     const div = document.createElement('div');
-                    div.className = 'note-point';
+                    div.className = 'note-card';
 
                     if (/^gruppo [a-z]:/i.test(point)) {
                         div.style.borderLeftColor = '#f59e0b';
-                        div.style.fontWeight = 'bold';
-                        div.style.fontSize = '15px';
-                    } else if (/^intro:/i.test(point)) {
-                        div.style.borderLeftColor = '#10b981';
                     }
 
-                    div.textContent = point;
+                    div.innerHTML = point;
                     notesDisplay.appendChild(div);
                 });
             }

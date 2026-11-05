@@ -1,58 +1,17 @@
 // ---------------------------------------- LIBRARIES -------------------------------------------------
 
-//  app = main window, BrowserWindow = make windows, ipcMain = manage signals
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');    /* library to create and use windows */
+//  app = main window, BrowserWindow = make windows, ipcMain = manage signals, dialog = open os's windows, shell = shell of the computer
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');    /* library to create and use windows */
 const path = require('path');   /* library to read paths */
+const fs = require('fs');   /* library to save on disk */
 const mammoth = require('mammoth'); /* library to read .docx */
 
 let mainWindow; // the main window is a global variable now
 let notesWindow; // the window with the notes of the campaign
-
-// ---------------------------------------- FUNCTION FOR NOTES WINDOW -------------------------------------------------
-
-let lastCampaignData = null;
-
-function parseCampaignNotes (rawText) {
-    const lines = rawText.split('\n').map(line => line.trim()).filter(line => line.length > 0); //dividing the lines of the text
-
-    const campaign = {};    //initializing the matrix and the raws and columns
-    let currentSeason = null;
-    let currentSession = null;
-
-    for (const line of lines) { //for all lines in the text
-
-        if(/^stagione/i.test(line)) {   //searching a line starting with Stagione
-            currentSeason = line;
-            campaign[currentSeason] = {};
-            currentSession = null; 
-        }
-
-        else if (/^sessione/i.test(line)) { //searching a line starting with Sessione
-            currentSession = line.replace(/:$/, '').trim();
-            if(!currentSeason) {
-                currentSeason = "Initial Notes";
-                campaign[currentSeason] = {};
-            }
-            if(!campaign[currentSeason][currentSession]) {
-                campaign[currentSeason][currentSession] = [];
-            }
-        }
-
-        else {  //adding normal lines to the right season and session
-            if(!currentSeason) {
-                currentSeason = "Initial Notes";
-                campaign[currentSeason] = {};
-            }
-            if(!currentSession) {
-                currentSession = "General";
-                campaign[currentSeason][currentSession] = [];
-            }
-            campaign[currentSeason][currentSession].push(line);
-        }
-    }
-
-    return campaign;    //returning the matrix
-}
+//saving variables
+let currentFilePath = null;
+let fileWatcher = null; //observing if the file is being saved on the disk
+let reloadTimeout = null;
 
 // ---------------------------------------- BASE CODE -------------------------------------------------
 
@@ -78,10 +37,38 @@ function createWindow() {   // window's maker
 app.whenReady().then(createWindow); // starting app
 
 app.on('window-all-closed', () => { //closing app
+    if(fileWatcher) fileWatcher.close(); //closing watcher
     if(process.platform !== 'darwin') { //to use all os
         app.quit();
     }
 });
+
+// ---------------------------------------- USING WORD FUNCTIONS -------------------------------------------------
+
+async function loadAndSendWordFile(filePath) {  //reading the Word's file
+    try {
+        const { value : html } = await mammoth.convertToHtml({ path: filePath});
+
+        if(notesWindow && !notesWindow.isDestroyed()) {
+            notesWindow.webContents.send('init-notes-html', html);
+        }
+
+    } catch (err) {
+        console.log('Retrying to read the file...');
+    }
+}
+
+async function startWatchingFile(filePath) {    //initializing the watcher
+    if(fileWatcher) fileWatcher.close();
+
+    fileWatcher = fs.watch(filePath, (eventType) => {
+        if(reloadTimeout) clearTimeout(reloadTimeout);
+        reloadTimeout = setTimeout(() => {
+            console.log("Updated Word! I'm reloading...");
+            loadAndSendWordFile(filePath);
+        }, 400);
+    });
+}
 
 // ---------------------------------------- MANAGING NOTES -------------------------------------------------
 
@@ -98,40 +85,38 @@ ipcMain.on('open-notes-dialog', async () => {
         return;
     }
 
-    const filePath = result.filePaths[0];   //saving file's path
-    console.log("Select file:", filePath);
+    currentFilePath = result.filePaths[0];  //saving file's path
 
-    try {
+    if (!notesWindow || notesWindow.isDestroyed()) {
+        notesWindow = new BrowserWindow({
+            x: 5,
+            y: 10,
+            width: 450,
+            height: 460,
+            title: "DM's Notes",
+            webPreferences: {
+                nodeIntegration: true,
+                contextIsolation: false
+            }
+        });
 
-        const { value: text } = await mammoth.extractRawText({ path: filePath });   //extracting the text from the file
+        notesWindow.loadFile('notes.html');
 
-        lastCampaignData = parseCampaignNotes(text);  //calling the function to divide the text
+    } else {
+        notesWindow.focus();
+    }
 
-        if (notesWindow && !notesWindow.isDestroyed()) {    //making the window
-            notesWindow.focus();
-            notesWindow.webContents.send('init-notes', lastCampaignData);
-        } else {
-            notesWindow = new BrowserWindow({
-                x: 10,
-                y: 10,
-                width: 450,
-                height: 420,
-                title: "Campaign Notes",
-                webPreferences: {
-                    nodeIntegration: true,
-                    contextIsolation: false
-                }
-            });
+    startWatchingFile(currentFilePath);
+});
 
-            notesWindow.loadFile('notes.html'); //calling note.html
-        }
-    } catch (err) {
-        console.error("ERROR: not reading file:", err); //founding error
+ipcMain.on('notes-window-ready', async () => {   //when notes.html is ready, send the data
+    if (currentFilePath) {
+        await loadAndSendWordFile(currentFilePath);
     }
 });
 
-ipcMain.on('notes-window-ready', (event) => {   //when notes.html is ready, send the data
-    if (lastCampaignData) {
-        event.reply('init-notes', lastCampaignData);
+ipcMain.on('open-in-word', () => {  //when is asked, open Word using the shell
+    if(currentFilePath) {
+        shell.openPath(currentFilePath);
     }
-});
+})
