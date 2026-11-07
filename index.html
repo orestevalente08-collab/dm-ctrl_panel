@@ -181,6 +181,7 @@
             <button id="btn-load-playlist">Load</button>
             <button id="btn-toggle-loop" class="btn-loop active">Loop: ON</button>
             <button id="btn-open-spotify" class="btn-spotify">Open Spotify</button>
+            <button id="btn-login-spotify" class="btn-spotify">Login Spotify</button>
         </div>
 
         <div id="spotify-embed-container"></div>    <!--the box where spotify will spawn-->
@@ -279,6 +280,10 @@
 
         btnOpenSpotify.addEventListener('click', () => {    /* clicking the button to opne spotify */
             ipcRenderer.send('open-spotify-app', spotifyInput.value.trim());
+        });
+
+        document.getElementById('btn-login-spotify').addEventListener('click', () => {  /* clicking the button for the login in spotify */
+            ipcRenderer.send('open-spotify-login');
         });
 
 /*-----------------------------RELOADING LAST SESSION-------------------------------------------*/

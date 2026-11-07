@@ -194,3 +194,12 @@ ipcMain.on('open-spotify-app', (event, playlistUrl) => {
         shell.openExternal(playlistUrl);    //writing in the shell the spotify url
     }
 });
+
+ipcMain.on('open-spotify-login', () => {    //opening url for login
+    const loginWin = new BrowserWindow({
+        width: 500,
+        height: 700,
+        title: "Spotify - Login"
+    });
+    loginWin.loadURL('https://accounts.spotify.com/it/login');
+});
