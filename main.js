@@ -23,7 +23,7 @@ function createWindow() {   // window's maker
         x: 450,
         y: 10,
         width: 650,
-        height: 150,
+        height: 560,
         alwaysOnTop: false,  // the window doesn't hide behind other windows
         resizable: true,    // the size can be changed using the mouse
         title: "DM-CTRLPanel",
@@ -102,6 +102,20 @@ async function startWatchingFile(filePath) {    //initializing the watcher
     });
 }
 
+// ---------------------------------------- LOADING SAVED SESSION -------------------------------------------------
+
+ipcMain.on('main-window-ready', (event) => {
+    if (fs.existsSync(sessionFilePath)) {
+        try {
+            const rawData = fs.readFileSync(sessionFilePath, 'utf-8');
+            const sessionData = JSON.parse(rawData);
+            event.reply('load-saved-session', sessionData);
+        } catch (err) {
+            console.error("ERROR: salved sessionnot found:", err);
+        }
+    }
+})
+
 // ---------------------------------------- MANAGING NOTES -------------------------------------------------
 
 
@@ -155,10 +169,11 @@ ipcMain.on('open-in-word', () => {  //when is asked, open Word using the shell
 
 // ---------------------------------------- SAVING AND QUITTING -------------------------------------------------
 
-ipcMain.on('save-and-quit', () => {
+ipcMain.on('save-and-quit', (event, playlistId) => {
     const sessionData = {
         wordFilePath: currentFilePath,  //saving the path
-        notesWindowOpen: (notesWindow && !notesWindow.isDestroyed())    //saving if the file was open
+        notesWindowOpen: (notesWindow && !notesWindow.isDestroyed()),    //saving if the file was open
+        spotifyPlaylist: playlistId || null //saving the spotify playlist
     };
 
     try {
@@ -170,4 +185,12 @@ ipcMain.on('save-and-quit', () => {
 
     if (fileWatcher) fileWatcher.close();   //closing the watcher
     app.quit(); //closing the app
+});
+
+// ---------------------------------------- OPENING SPOTIFY -------------------------------------------------
+
+ipcMain.on('open-spotify-app', (event, playlistUrl) => {
+    if ( playlistUrl) {
+        shell.openExternal(playlistUrl);    //writing in the shell the spotify url
+    }
 });

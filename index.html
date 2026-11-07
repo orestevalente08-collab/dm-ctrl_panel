@@ -8,6 +8,8 @@
 
     <style>
 
+/* ----------------------------------------MAIN BUTTONS-------------------------------------------------------------- */
+
         body {  /* main panel */
             margin: 0;
             padding: 8px 12px;
@@ -15,10 +17,22 @@
             color: #ffffff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;  /* aligning all elements */
+            flex-direction: column;
             align-items: center;    /* centring */ 
             gap: 10px;
             user-select: none;
             overflow: hidden;
+        }
+
+        .top-bar {  /* top bar with principal buttons */ 
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .top-bar button {
+            white-space: nowrap;
         }
 
         button {    /* making a button */
@@ -41,6 +55,8 @@
         button:active { /* activating a button */
             transform: scale(0.97);
         }
+        
+/* ----------------------------------------SECOND SCREEN-------------------------------------------------------------- */
 
         .previewbox {   /* previewbox for second screen */
             width: 90px;
@@ -56,6 +72,8 @@
             text-align: center;
         }
 
+/* ----------------------------------------SAVE AND QUIT BUTTON-------------------------------------------------------------- */
+
         .danger-btn {   /* quitting button */
             background: #5a1e24;
             border-color: #802830;
@@ -66,18 +84,93 @@
             background: #7a2830;
         }
 
+/* ----------------------------------------SPOTIFY FEATURES-------------------------------------------------------------- */
+
+        .spotify-container {    /* spotify box */
+            background: #121216;
+            border: 1px solid #282833;
+            border-radius: 8px;
+            padding: 8px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .spotify-controls { /* spotify commands */
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .spotify-input {
+            flex: 1;
+            background: #232330;
+            border: 1px solid #404055;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .btn-spotify {  /* button to open Spotify */
+            background: #1db954;
+            color: #000;
+            border: none;
+            font-weight: bold;
+        }
+
+        .btn-spotify:hover {
+            background: #1ed670;
+            color: #000;
+        }
+
+        #spotify-frame {    /* box for songs */
+            width: 100%;
+            height: 360px;
+            border-radius: 8px;
+            border: none;
+        }
+
     </style>
 </head>
 
 <body>
 
-    <button id="btn-word"> Notes </button>
-    <button id="btn-manual"> Manual PDF </button>
-    <button id="btn-screen2"> Player's Screen </button>
+<!--------------------------------------MAIN BUTTONS-------------------------------------------------------->
+    <div class="top-bar">
+        <button id="btn-word"> Notes </button>
+        <button id="btn-manual"> Manual PDF </button>
+        <button id="btn-screen2"> Player's Screen </button>
 
-    <div class="previewbox">Player's Screen Preview</div>
+        <div class="previewbox">Player's Screen Preview</div>
 
-    <button id="btn-quit" class="danger-btn"> Save and Quit </button>
+        <button id="btn-quit" class="danger-btn"> Save and Quit </button>
+    </div>
+
+<!--------------------------------------SPOTIFY FEATURES-------------------------------------------------------->
+
+    <div class="spotify-container">
+        <div class="spotify-controls">
+            <input
+                type="text"
+                id="spotify-url-input"
+                class="spotify-input"
+                placeholder="Paste the link of the playlist..."
+                value="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
+            />
+            <button id="btn-load-playlist">Load</button>
+            <button id="btn-open-spotify" class="btn-spotify">Open Spotify</button>
+        </div>
+    </div>
+
+    <!--box for songs-->
+    <iframe
+        id="spotify-frame"
+        src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator&theme=0"
+        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+        loading="lazy">
+    </iframe>
 
     <script>
         
@@ -85,17 +178,56 @@
 
         const btnWord = document.getElementById('btn-word');    /* making the button for the notes */
         const btnQuit = document.getElementById('btn-quit');    /* making the button for save and quit */
+        const btnOpenSpotify = document.getElementById('btn-open-spotify'); /* making the button to open spotify */
+        const btnLoadPlaylist = document.getElementById('btn-load-playlist');   /* making the button to load the playlist */
+        const spotifyInput = document.getElementById('spotify-url-input');  /* */
+        const spotifyFrame = document.getElementById('spotify-frame');  /* making box for songs */
+
+        window.addEventListener('DOMContentLoaded', () => { /* asking the saved session */
+            ipcRenderer.send('main-window-ready');
+        });
+
+        ipcRenderer.on('load-saved-session', (event, sessionData) => {  /* using saved data, reaload spotify */
+            if(sessionData && sessionData.spotifyPlaylist) {
+                spotifyInput.value = sessionData.spotifyPlaylist;
+                updateSpotifyEmbed(sessionData.spotifyPlaylist);
+            }
+        })
 
         btnWord.addEventListener('click', () => {   /* send a message to main.js asking to open a document */
             ipcRenderer.send('open-notes-dialog');
         });
 
         btnQuit.addEventListener('click', () => {   /* send a message to main.js asking to close all the windows, saving them */
-            ipcRenderer.send('save-and-quit');
+            ipcRenderer.send('save-and-quit', spotifyInput.value.trim());
         })
 
+/*---------------------------------SPOTIFY FEATURES------------------------------------------------ */
+
+        function updateSpotifyEmbed (url) { /* loading the link */
+            const match = url.match(/playlist\/([a-zA-Z0-9]+)/);
+            if(match && match[1]) {
+                const playlistId = match[1];
+                spotifyFrame.src = 'https://open.spotify.com/embed/playlist/' + playlistId + '?utm_source=generator&theme=0';
+            } else {
+                alert('Insert a valid link!');
+            }
+        }
+
+        btnLoadPlaylist.addEventListener('click', () => {   /* clicking the load button */
+            updateSpotifyEmbed(spotifyInput.value.trim());
+        });
+
+        spotifyInput.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') {
+                updateSpotifyEmbed(spotifyInput.value.trim());
+            }
+        });
+
+        btnOpenSpotify.addEventListener('click', () => {    /* clicking the button to opne spotify */
+            ipcRenderer.send('open-spotify-app', spotifyInput.value.trim());
+        });
+
     </script>
-
-
 </body>
 </html>
