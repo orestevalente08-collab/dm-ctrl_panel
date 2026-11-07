@@ -9,9 +9,11 @@ const mammoth = require('mammoth'); /* library to read .docx */
 let mainWindow; // the main window is a global variable now
 let notesWindow; // the window with the notes of the campaign
 //saving variables
-let currentFilePath = null;
+let currentFilePath = null; //path of the word's file
 let fileWatcher = null; //observing if the file is being saved on the disk
 let reloadTimeout = null;
+
+const sessionFilePath = path.join(__dirname, 'session.json');   //making the path of the new file
 
 // ---------------------------------------- BASE CODE -------------------------------------------------
 
@@ -32,6 +34,36 @@ function createWindow() {   // window's maker
     });
 
     mainWindow.loadFile('index.html'); //initializing an html file for graphic
+
+    if (fs.existsSync(sessionFilePath)) {   //saving the session's windows
+        try {
+            const rawData = fs.readFileSync(sessionFilePath, 'utf-8');
+            const sessionData = JSON.parse(rawData);
+
+            if (sessionData.wordFilePath && fs.existsSync(sessionData.wordFilePath)) {
+                currentFilePath = sessionData.wordFilePath; //taking the last word opened
+                startWatchingFile(currentFilePath); //starting the watcher
+                console.log("Reloaded last word: ", currentFilePath);
+
+                if(sessionData.wordFilePath) {
+                    notesWindow = new BrowserWindow({   //reloading the window
+                        x: 5,
+                        y: 10,
+                        width: 450,
+                        height: 460,
+                        title: "DM's Notes",
+                        webPreferences: {
+                            nodeIntegration: true,
+                            contextIsolation: false
+                        }
+                    });
+                    notesWindow.loadFile('notes.html');
+                }
+            }
+        } catch (err) {
+            console.error("ERROR: not reloaded session: ", err);
+        }
+    }
 }
 
 app.whenReady().then(createWindow); // starting app
@@ -81,14 +113,14 @@ ipcMain.on('open-notes-dialog', async () => {
         properties: ['openFile']
     });
 
-    if (result.canceled || result.filePaths.length === 0) {
+    if (result.canceled || result.filePaths.length === 0) { //if the file doesn't exist, close it
         return;
     }
 
     currentFilePath = result.filePaths[0];  //saving file's path
 
     if (!notesWindow || notesWindow.isDestroyed()) {
-        notesWindow = new BrowserWindow({
+        notesWindow = new BrowserWindow({   //opening a new notes window
             x: 5,
             y: 10,
             width: 450,
@@ -100,7 +132,7 @@ ipcMain.on('open-notes-dialog', async () => {
             }
         });
 
-        notesWindow.loadFile('notes.html');
+        notesWindow.loadFile('notes.html'); //loading the web file
 
     } else {
         notesWindow.focus();
@@ -119,4 +151,23 @@ ipcMain.on('open-in-word', () => {  //when is asked, open Word using the shell
     if(currentFilePath) {
         shell.openPath(currentFilePath);
     }
-})
+});
+
+// ---------------------------------------- SAVING AND QUITTING -------------------------------------------------
+
+ipcMain.on('save-and-quit', () => {
+    const sessionData = {
+        wordFilePath: currentFilePath,  //saving the path
+        notesWindowOpen: (notesWindow && !notesWindow.isDestroyed())    //saving if the file was open
+    };
+
+    try {
+        fs.writeFileSync(sessionFilePath, JSON.stringify(sessionData, null, 2), 'utf-8');   //writing the file
+        console.log("Salved session correctly");
+    } catch (err) { //managing errors
+        console.error("ERROR: saving not done: ", err);
+    }
+
+    if (fileWatcher) fileWatcher.close();   //closing the watcher
+    app.quit(); //closing the app
+});

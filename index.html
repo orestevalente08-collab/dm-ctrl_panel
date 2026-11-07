@@ -73,9 +73,9 @@
 
     <button id="btn-word"> Notes </button>
     <button id="btn-manual"> Manual PDF </button>
-    <button id="btn-screen2"> Second-Screen </button>
+    <button id="btn-screen2"> Player's Screen </button>
 
-    <div class="previewbox">Second-Screen Preview</div>
+    <div class="previewbox">Player's Screen Preview</div>
 
     <button id="btn-quit" class="danger-btn"> Save and Quit </button>
 
@@ -83,11 +83,16 @@
         
         const { ipcRenderer } = require('electron');
 
-        const btnWord = document.getElementById('btn-word');
+        const btnWord = document.getElementById('btn-word');    /* making the button for the notes */
+        const btnQuit = document.getElementById('btn-quit');    /* making the button for save and quit */
 
         btnWord.addEventListener('click', () => {   /* send a message to main.js asking to open a document */
             ipcRenderer.send('open-notes-dialog');
         });
+
+        btnQuit.addEventListener('click', () => {   /* send a message to main.js asking to close all the windows, saving them */
+            ipcRenderer.send('save-and-quit');
+        })
 
     </script>
 
