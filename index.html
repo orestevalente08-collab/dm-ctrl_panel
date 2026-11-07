@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <title>DM CTRLPanel</title>
 
+    <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>  <!--opening the api of spotify-->
 
     <style>
 
@@ -125,11 +126,29 @@
             color: #000;
         }
 
-        #spotify-frame {    /* box for songs */
+        .btn-loop {
+            background: #2b2b3d;
+            color: #888;
+            border: 1px solid #444;
+        }
+
+        .btn-loop.active {
+            background: #065f46;
+            color: #34d399;
+            border-color: #059669;
+        }
+
+        #spotify-embed-container {    /* box for songs */
             width: 100%;
             height: 360px;
             border-radius: 8px;
             border: none;
+            overflow: hidden;
+        }
+
+        #spotify-embed-container iframe {
+            border: none;
+            border-radius: 8px;
         }
 
     </style>
@@ -160,17 +179,12 @@
                 value="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
             />
             <button id="btn-load-playlist">Load</button>
+            <button id="btn-toggle-loop" class="btn-loop active">Loop: ON</button>
             <button id="btn-open-spotify" class="btn-spotify">Open Spotify</button>
         </div>
-    </div>
 
-    <!--box for songs-->
-    <iframe
-        id="spotify-frame"
-        src="https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M?utm_source=generator&theme=0"
-        allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-        loading="lazy">
-    </iframe>
+        <div id="spotify-embed-container"></div>    <!--the box where spotify will spawn-->
+    </div>
 
     <script>
         
@@ -180,8 +194,94 @@
         const btnQuit = document.getElementById('btn-quit');    /* making the button for save and quit */
         const btnOpenSpotify = document.getElementById('btn-open-spotify'); /* making the button to open spotify */
         const btnLoadPlaylist = document.getElementById('btn-load-playlist');   /* making the button to load the playlist */
+        const btnToggleLoop = document.getElementById('btn-toggle-loop'); /* making the button to put a loop on one song*/
         const spotifyInput = document.getElementById('spotify-url-input');  /* */
-        const spotifyFrame = document.getElementById('spotify-frame');  /* making box for songs */
+
+        let spotifyController = null;
+        let isLoopEnable = true;
+        let isRewiding = false;
+
+        btnWord.addEventListener('click', () => {   /* send a message to main.js asking to open a document */
+            ipcRenderer.send('open-notes-dialog');
+        });
+
+        btnQuit.addEventListener('click', () => {   /* send a message to main.js asking to close all the windows, saving them */
+            ipcRenderer.send('save-and-quit', spotifyInput.value.trim());
+        })
+
+        btnToggleLoop.addEventListener('click', () => { /* changing the button loop */
+            isLoopEnable = !isLoopEnable;
+            if(isLoopEnable) {
+                btnToggleLoop.textContent = "Loop: ON";
+                btnToggleLoop.classList.add('active');
+            } else {
+                btnToggleLoop.textContent = "Loop: OFF";
+                btnToggleLoop.classList.remove('active');
+            }
+        });
+
+/*---------------------------------SPOTIFY FEATURES------------------------------------------------ */
+
+        window.onSpotifyIframeApiReady = (IFrameAPI) => {   //managing the api of spotify
+            const element = document.getElementById('spotify-embed-container');
+            const options = {
+                width: '100%',
+                height: 360,
+                uri: getSpotifyUri(spotifyInput.value.trim())
+            };
+
+            IFrameAPI.createController(element, options, (EmbedController) => {
+                spotifyController = EmbedController;
+
+                EmbedController.addListener('playback_update', e => {
+                    const { duration, position, isPaused } = e.data;
+
+                    if(isLoopEnable && !isPaused && duration > 0) {
+                        if( position >= duration - 900 && !isRewiding) {
+                            isRewiding = true;
+                            console.log("I'm rewinding...");
+                            EmbedController.seek(0);
+                            EmbedController.play();
+
+                            setTimeout(() => {
+                                isRewiding = false;
+                            }, 1500);
+                        }
+                    }
+                });
+            });
+        };
+
+        function getSpotifyUri(url) {   //taking tha playlist's url
+            const match = url.match(/playlist\/([a-zA-Z0-9]+)/);
+            if (match && match[1]) {
+                return `spotify:playlist:${match[1]}`;
+            }
+            return 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M';
+        }
+
+        function updatePlaylist (url) { //updating the url of the playlist
+            const uri = getSpotifyUri(url);
+            if (spotifyController) {
+                spotifyController.loadUri(uri);
+            }
+        }
+
+        btnLoadPlaylist.addEventListener('click', () => {   /* clicking the load button */
+            updatePlaylist(spotifyInput.value.trim());
+        });
+
+        spotifyInput.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') {
+                updatePlaylist(spotifyInput.value.trim());
+            }
+        });
+
+        btnOpenSpotify.addEventListener('click', () => {    /* clicking the button to opne spotify */
+            ipcRenderer.send('open-spotify-app', spotifyInput.value.trim());
+        });
+
+/*-----------------------------RELOADING LAST SESSION-------------------------------------------*/
 
         window.addEventListener('DOMContentLoaded', () => { /* asking the saved session */
             ipcRenderer.send('main-window-ready');
@@ -192,40 +292,6 @@
                 spotifyInput.value = sessionData.spotifyPlaylist;
                 updateSpotifyEmbed(sessionData.spotifyPlaylist);
             }
-        })
-
-        btnWord.addEventListener('click', () => {   /* send a message to main.js asking to open a document */
-            ipcRenderer.send('open-notes-dialog');
-        });
-
-        btnQuit.addEventListener('click', () => {   /* send a message to main.js asking to close all the windows, saving them */
-            ipcRenderer.send('save-and-quit', spotifyInput.value.trim());
-        })
-
-/*---------------------------------SPOTIFY FEATURES------------------------------------------------ */
-
-        function updateSpotifyEmbed (url) { /* loading the link */
-            const match = url.match(/playlist\/([a-zA-Z0-9]+)/);
-            if(match && match[1]) {
-                const playlistId = match[1];
-                spotifyFrame.src = 'https://open.spotify.com/embed/playlist/' + playlistId + '?utm_source=generator&theme=0';
-            } else {
-                alert('Insert a valid link!');
-            }
-        }
-
-        btnLoadPlaylist.addEventListener('click', () => {   /* clicking the load button */
-            updateSpotifyEmbed(spotifyInput.value.trim());
-        });
-
-        spotifyInput.addEventListener('keypress', (e) => {
-            if(e.key === 'Enter') {
-                updateSpotifyEmbed(spotifyInput.value.trim());
-            }
-        });
-
-        btnOpenSpotify.addEventListener('click', () => {    /* clicking the button to opne spotify */
-            ipcRenderer.send('open-spotify-app', spotifyInput.value.trim());
         });
 
     </script>
