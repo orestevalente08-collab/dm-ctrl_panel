@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+
+<html lang="eng">
+    <head>
+        <meta charset="UTF-8">
+        <title>Manuals Library</title>
+        <style>
+
+            * {
+                box-sizing: border-box;
+                user-select: none;
+            }
+
+            body {  /* main panel */
+                margin: 0;
+                padding: 0;
+                width: 100vw;
+                height: 100vh;
+                background: radial-gradient(circle at 50% 35%, #232334 0%, #111118 100%);
+                color: #e0e0e0;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .header-bar {
+                height: 52px;
+                padding: 0 20px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                background: rgba(18, 18, 24, 0.9);
+                border-bottom: 1px solid #323246;
+                z-index: 200;
+            }
+
+            .header-title {
+                font-size: 15px;
+                font-weight: 700;
+                color: #dfb15b;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .search-box {
+                position: relative;
+                width: 260px;
+            }
+
+            .search-box input {
+                width: 100%;
+                background: #1b1b26;
+                border: 1px solid #44445c;
+                border-radius: 20px;
+                padding: 6px 14px 6px 32px;
+                color: #fff;
+                font-size: 12px;
+                outline: none;
+                transition: border-color 0.2s, box-shadow 0.2s;
+            }
+
+            .search-box input:focus {
+                border-color: #dfb15b;
+                box-shadow: 0 0 8px rgba(223, 117, 91, 0.3);
+            }
+
+            .search-icon {
+                position: absolute;
+                left: 10px;
+                top: 50%;
+                transform: translateY(-50%);
+                font-size: 12px;
+                color: #8888a0;
+                pointer-events: none;
+            }
+
+            .btn-folder {
+                background: #2b2b3d;
+                border: 1px solid #484862;
+                color: #cfcfe2;
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+
+            .btn-folder:hover {
+                background: #3c3c54;
+                color: #ffffff;
+                border-color: #646488;
+            }
+
+            /*-------------------------------BOOK SHELF---------------------------------------*/
+            .stage-container {
+                flex: 1;
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                perspective: 1100px;
+                overflow: hidden;
+                cursor: grab;
+            }
+
+            .stage-container active {
+                cursor: grabbing;
+            }
+
+            .books-track {
+                position: relative;
+                width: 100%;
+                height: 330px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transform-style: preserve-3d;
+            }
+
+            /*---------------------------------3D BOOK----------------------------------------*/
+            .book-item {
+                position: absolute;
+                width: 195px;
+                height: 280px;
+                border-radius: 4px 8px 8px 4px;
+                transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                            filter 0.4s cubic-bezier(0.25, 1, 0.5, 1),
+                            opacity 0.4s ease,
+                            box-shadow 0.4s ease;
+                transform-style: preserve-3d;
+                cursor: pointer;
+                will-change: transform, filter;
+                box-shadow: -10px 15px 30px rgba(0, 0, 0, 0.7);
+            }
+
+            .book-item.active {
+                box-shadow: 0 0 28px rgba(223, 117, 91, 0.45),
+                            0 20px 40px rgba(0, 0, 0, 0.9);
+            }
+
+            .book-spine-strip {
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                width: 15px;
+                background: linear-gradient(to right, rgba(0,0,0,0.65) 0%, rgba(255,255,255,0.15) 45%, rgba(0,0,0,0.45) 100%);
+                border-radius: 4px 0 0 4px;
+                z-index: 10;
+                pointer-events: none;
+            }
+
+            .book-cover {
+                width: 100%;
+                height: 100%;
+                border-radius: 4px 8px 8px 4px;
+                overflow: hidden;
+                position: relative;
+                background: #161622;
+            }
+
+            .cover-fallback {
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(135deg, #3d2314 0%, #201107 100%);
+                border: 2px solid #5a361e;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 18px 12px;
+                text-align: center;
+                box-sizing: border-box;
+            }
+
+            .ornate-border {
+                position: absolute;
+                inset: 7px;
+                border: 1px solid rgba(223, 117, 91, 0.35);
+                border-radius: 3px;
+                pointer-events: none;
+            }
+
+            .fallback-icon {
+                font-size: 38px;
+                margin-bottom: 10px;
+                filter: drop-shadow(0 4px 8px rgba(0,0,0,0.6));
+            }
+
+            .fallback-title {
+                font-size: 13px;
+                font-weight: 700;
+                color: #f0d59e;
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+                word-break: break-word;
+                line-height: 1.35;
+            }
+
+            .pdf-canvas {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: none;
+                border-radius: 4px 8px 8px 4px;
+            }
+
+            /* bookmark */
+            .ribbon {
+                position: absolute;
+                bottom: -14px;
+                left: 28px;
+                width: 13px;
+                height: 24px;
+                background: #9e1a1a;
+                clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+                z-index: 5;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+                pointer-events: none;
+            }
+
+            .shelf-plank {
+                position: absolute;
+                bottom: 70px;
+                left: 0;
+                right: 0;
+                height: 22px;
+                background: linear-gradient(to bottom, #7a4623 0%, #4a2812 40%, #2e1709 100%);
+                border-top: 3px solid #a36134;
+                box-shadow: 0 16px 28px rgba(0, 0, 0, 0.9);
+                z-index: 10;
+            }
+
+            .shelf-plank::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 2px;
+                background: linear-gradient(to right, rgba(225, 225, 255, 0.05), rgba(255, 255, 255, 0.25) 50%, rgba(255, 255, 255, 0.05));
+            }
+
+            /*----------------------------------------BOTTOM BAR----------------------------------------------*/
+            .bottom-bar {
+                height: 75px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                background: #13131c;
+                border-top: 1px solid #282838;
+                z-index: 100;
+            }
+
+            .active-manual-title {
+                font-size: 15px;
+                font-weight: 700;
+                color: #f7e1b5;
+                text-align: center;
+                max-width: 80%;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+            }
+
+            .actions-row {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+            }
+
+            .counter-badge {
+                font-size: 12px;
+                color: #8c8ca2;
+                font-weight: 600;
+            }
+
+            .btn-open-pdf {
+                background: linear-gradient(135deg, #b88628 0%, #875c13 100%);
+                color: #ffffff;
+                border: 1px solid #dfb15b;
+                padding: 6px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 700;
+                cursor: pointer;
+                box-shadow: 0 4px 12px rgba(184, 134, 40, 0.35);
+                transition: all 0.2s;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .btn-open-pdf:hover {
+                background: linear-gradient(135deg, #cf982e 0%, #9a6a18 100%);
+                transform: translateY(-1px);
+                box-shadow: 0 6px 16px rgba(184, 134, 40, 0.05);
+            }
+
+            .btn-open-pdf:active {
+                transform: translateY(1px);
+            }
+
+            /* moving arrows */
+            .nav-btn {
+                position: absolute;
+                top: 48%;
+                transform: translateY(-50%);
+                width: 42px;
+                height: 42px;
+                border-radius: 50%;
+                background: rgba(30, 30, 42, 0.7);
+                border: 1px solid #44445c;
+                color: #dfb15b;
+                font-size: 22px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                z-index: 150;
+                transition: all 0.2s;
+                backdrop-filter: blur(4px);
+            }
+
+            .nav-btn:hover {
+                background: rgba(50, 50, 70, 0.9);
+                border-color: #dfb15b;
+                transform: translateY(-50%) scale(1.08);
+            }
+
+            .nav-prev {left: 16px;}
+            .nav-next {right: 16px;}
+
+            .empty-shelf {
+                display: none;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                color: #8888a2;
+                gap: 10px;
+                z-index: 50;
+            }
+
+            .empty-shelf-icon {
+                font-size: 48px;
+                opacity: 0.7;
+            }
+
+        </style>
+
+        <!--Including PDF.js for electron-->
+        <script>
+            if (typeof module === 'object') {
+                window.tempModule = module;
+                module = undefined;
+            }
+        </script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+        <script>
+            if (window.tempModule) {
+                module = window.tempModule;
+                window.tempModule = undefined;
+            }
+            if (window.pdfjsLib) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+        </script>
+    </head>
+    <body>
+        <!--TOP BAR-->
+        <div class="header-bar">
+            <div class="header-title">
+                <span>Book Shelf</span>
+            </div>
+
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-input" placeholder="Search manual...">
+            </div>
+
+            <button id="btn-change-folder" class="btn-folder">Change Directory</button>
+        </div>
+        <!--SHELF AREA-->
+        <div class="stage-container" id="stage">
+            <button class="nav-btn nav-prev" id="btn-prev">‹</button>
+            <button class="nav-btn nav-next" id="btn-next">›</button>
+
+            <div class="books-track" id="books-track"></div>
+
+            <div class="empty-shelf" id="empty-shelf">
+                <div class="empty-shelf-icon">📖</div>
+                <div id="empty-shelf-text">PDFs not found.</div>
+            </div>
+
+            <!--SHELF PLANK-->
+            <div class="shelf-plank"></div>
+        </div>
+
+        <!--BOTTOM BAR-->
+        <div class="bottom-bar">
+            <div class="active-manual-title" id="active-title">-</div>
+            <div class="actions-row">
+                <span class="counter-badge" id="counter-badge">0 / 0</span>
+                <button class="btn-open-pdf" id="btn-open">Open Manual(Enter)</button>
+            </div>
+        </div>
+
+        <script>
+            const { ipcRenderer } = require('electron');
+            const path = require('path');
+            const fs = require('fs');
+
+            let currentFolderPath = '';
+            let allFiles = [];
+            let filteredFiles = [];
+            let currentIndex = 0;
+
+            const booksTrack = document.getElementById('books-track');
+            const emptyShelf = document.getElementById('empty-shelf');
+            const emptyShelfText = document.getElementById('empty-shelf-text');
+            const activeTitleEl = document.getElementById('active-title');
+            const counterBadge = document.getElementById('counter-badge');
+            const searchInput = document.getElementById('search-input');
+            const btnOpen = document.getElementById('btn-open');
+            const btnPrev = document.getElementById('btn-prev');
+            const btnNext = document.getElementById('btn-next');
+            const btnChangeFolder = document.getElementById('btn-change-folder');
+
+            const coverThemes = [
+                { bg: 'linear-gradient(135deg, #441e15 0%, #240e09 100%)', border: '#783925' }, // Dragon Red
+                { bg: 'linear-gradient(135deg, #18342b 0%, #0c1c17 100%)', border: '#2d6352' }, // Emerald
+                { bg: 'linear-gradient(135deg, #16243b 0%, #0a1320 100%)', border: '#284675' }, // Sapphire
+                { bg: 'linear-gradient(135deg, #331d38 0%, #1c0d20 100%)', border: '#60356b' }, // Amethyst
+                { bg: 'linear-gradient(135deg, #382c16 0%, #1e160a 100%)', border: '#6e5628' }, // Ancient Tome
+            ];
+
+            window.addEventListener('DOMContentLoaded', () => { //when the window is ready send the signal
+                ipcRenderer.send('manuals-window-ready');
+            })
+            
+            ipcRenderer.on('init-manuals-list', (event, data) => {  //receaving data from main.js
+                currentFolderPath = data.folderPath || '';
+                allFiles = data.files || [];
+                applyFilter();
+            });
+
+            searchInput.addEventListener('input', () => {
+                applyFilter();
+            });
+
+            function applyFilter() {    //searching with filters
+                const query = searchInput.value.trim().toLowerCase();
+                if (!query) {
+                    filteredFiles = [...allFiles];
+                } else {
+                    filteredFiles = allFiles.filter(f => f.toLowerCase().includes(query));
+                }
+                currentIndex = 0;
+                renderShelf();
+            }
+
+            function renderShelf() {    //rendering the manuals shelf
+                booksTrack.innerHTML = '';
+
+                if (filteredFiles.length === 0) {
+                    emptyShelf.style.display = 'flex';
+                    emptyShelfText.textContent = allFiles.length === 0
+                        ? "PDF file not found in the folder."
+                        : "Not manual corrispondent to the research."
+                    activeTitleEl.textContent = '-';
+                    counterBadge.textContent = '0 / 0';
+                    btnOpen.disabled = true;
+                    return;
+                }
+
+                emptyShelf.style.display = 'none';
+                btnOpen.disabled = false;
+
+                filteredFiles.forEach((fileName, index) => {
+                    const book = document.createElement('div');
+                    book.className = 'book-item';
+                    book.dataset.index = index;
+
+                    const theme = coverThemes[index % coverThemes.length];
+                    const cleanTitle = fileName.replace(/\.[^/.]+$/, "");
+
+                    book.innerHTML = `
+                        <div class="book-spine-strip"></div>
+                        <div class="book-cover">
+                            <div class="cover-fallback" style="background: ${theme.bg}; border-color: ${theme.border}">
+                                <div class="ornate-border"></div>
+                                <div class="fallback-icon">📜</div>
+                                <div class="fallback-title">${cleanTitle}</div>
+                            </div>
+                            <canvas class="pdf-canvas"></canvas>
+                        </div>
+                        <div class="ribbon"></div>`;
+                    
+                    book.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (currentIndex === index) {
+                            openSelectedPdf();
+                        } else {
+                            selectIndex(index);
+                        }
+                    });
+
+                    book.addEventListener('dblclick', (e) => {
+                        e.stopPropagation();
+                        selectIndex(index);
+                        openSelectedPdf();
+                    });
+
+                    booksTrack.appendChild(book);
+
+                    renderPdfCover(fileName, book);
+                });
+
+                updateTransforms();
+
+            }
+
+            function updateTransforms() {   //calculating 3D prospectives
+                const books = booksTrack.querySelectorAll('.book-item');
+                if (books.length === 0) return;
+
+                if (currentIndex < 0) currentIndex = 0;
+                if (currentIndex >= filteredFiles.length) currentIndex = filteredFiles.length - 1;
+
+                books.forEach((book, index) => {
+                    const offset = index - currentIndex;
+                    const absOffset =  Math.abs(offset);
+
+                    if(offset === 0) {  //central book
+                        book.classList.add('active');
+                        book.style.transform = `translateX(0px) translateZ(130px) rotateY(0deg) scale(1.08)`;
+                        book.style.zIndex = 100;
+                        book.style.filter = 'brightness(1)';
+                        book.style.opacity = '1';
+                        book.style.pointerEvents = 'auto';
+                    } else if (offset < 0) {    //books at left
+                        book.classList.remove('active');
+                        const x = offset*65 - 405;
+                        const z = -absOffset * 55;
+                        book.style.transform = `translateX(${x}px) translateZ(${z}px) rotateY(45deg) scale(0.92)`;
+                        book.style.zIndex = 100 - absOffset;
+                        book.style.filter = `brightness(${Math.max(0.35, 1-absOffset*0.16)})`;
+                        book.style.opacity = absOffset > 6 ? '0' : '1';
+                        book.style.pointerEvents = absOffset > 6 ? 'none' : 'auto';
+                    } else {    //books at right
+                        book.classList.remove('active');
+                        const x = offset * 65 + 105;
+                        const z = -absOffset * 55;
+                        book.style.transform = `translateX(${x}px) translateZ(${z}px) rotateY(-45deg) scale(0.92)`;
+                        book.style.zIndex = 100 - absOffset;
+                        book.style.filter = `brightness(${Math.max(0.35, 1-absOffset*0.16)})`;
+                        book.style.opacity = absOffset > 6 ? '0' : '1';
+                        book.style.pointerEvents = absOffset > 6 ? 'none' : 'auto';
+                    }
+                });
+
+                const currentFileName = filteredFiles[currentIndex];
+                activeTitleEl.textContent = currentFileName.replace(/\.[^/.]+$/, "");
+                counterBadge.textContent = `${currentIndex + 1} / ${filteredFiles.length}`;
+            }
+
+            function selectIndex(index) {
+                if (filteredFiles.length === 0) return;
+                const newIndex = Math.max(0, Math.min(filteredFiles.length -1, index));
+                if (newIndex !== currentIndex) {
+                    currentIndex = newIndex;
+                    updateTransforms();
+                }
+            }
+
+            function openSelectedPdf() {
+                if (filteredFiles.length === 0) return;
+                const fileName = filteredFiles[currentIndex];
+                ipcRenderer.send('open-pdf-file', fileName);
+            }
+
+            btnOpen.addEventListener('click', openSelectedPdf);
+            btnPrev.addEventListener('click', () => selectIndex(currentIndex -1));
+            btnNext.addEventListener('click', () => selectIndex(currentIndex +1));
+
+            btnChangeFolder.addEventListener('click', () => {
+                ipcRenderer.send('change-manuals-folder');
+            });
+
+            //--------------------------MOUSE CONTROLS---------------------------------
+            //mouse wheel
+            let wheelTrottle = false;
+            window.addEventListener('wheel', (e) => {
+                if (filteredFiles.length <= 1) return;
+                const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+                if(Math.abs(delta) < 15) return;
+
+                if(!wheelTrottle) {
+                    if (delta > 0) {
+                        selectIndex(currentIndex + 1);
+                    } else {
+                        selectIndex(currentIndex - 1);
+                    }
+                    wheelTrottle = true;
+                    setTimeout(() => { wheelTrottle = false; }, 140);
+                }
+            }, {passive: true});
+
+            const stage = document.getElementById('stage');
+            let isDragging = false;
+            let dragStartX = 0;
+            let dragMoved = 0;
+
+            stage.addEventListener('mousedown', (e) => {
+                if (e.target.closest('.nav-btn') || e.target.closest('.shelf-plank')) return;
+                isDragging = true;
+                dragStartX = e.clientX;
+                dragMoved = 0;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                dragMoved = e.clientX - dragStartX;
+            });
+
+            window.addEventListener('mouseup', (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+                if (dragMoved < -50) {
+                    selectIndex(currentIndex +1);
+                }else if (dragMoved > 50) {
+                    selectIndex(currentIndex - 1);
+                }
+            });
+
+            window.addEventListener('keydown', (e) => {
+                if (e.target === searchInput)  return;
+                if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                    selectIndex(currentIndex + 1);
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                    selectIndex(currentIndex - 1);
+                } else if (e.key === 'Enter') {
+                    openSelectedPdf();
+                }
+            });
+
+            //-----------------------FIRST PAGE PREVIEW---------------------------------
+            async function renderPdfCover(fileName, bookElement) {
+                if(!window.pdfjsLib || !currentFolderPath) return;
+
+                const fullPath = path.join(currentFolderPath, fileName);
+                if(!fs.existsSync(fullPath)) return;
+
+                try {
+                    const fileData = fs.readFileSync(fullPath);
+                    const uint8Array = new Uint8Array(fileData);
+
+                    const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+                    const pdf = await loadingTask.promise;
+                    const page = await pdf.getPage(1);
+
+                    const canvas = bookElement.querySelector('.pdf-canvas');
+                    if(!canvas) return;
+
+                    const unscaled = page.getViewport({ scale: 1.0 });
+                    const targetWindth = 240;
+                    const scale = targetWindth / unscaled.width;
+                    const viewport = page.getViewport({ scale: scale });
+
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+
+                    const context = canvas.getContext('2d');
+                    await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+                    canvas.style.display = 'block';
+                    const fallback = bookElement.querySelector('.cover-fallback');
+                    if (fallback) fallback.style.display = 'none';
+
+                } catch (err) {
+                    console.warn("ERROR: generating the preview is impossible: ", err);
+
+                }
+            }
+        </script>
+    </body>
+</html>

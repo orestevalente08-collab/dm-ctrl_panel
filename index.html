@@ -1,42 +1,38 @@
 <!DOCTYPE html>
-
-<html lang="eng">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>DM CTRLPanel</title>
 
-    <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>  <!--opening the api of spotify-->
-
     <style>
-
-/* ----------------------------------------MAIN BUTTONS-------------------------------------------------------------- */
-
-        body {  /* main panel */
+        /* ------------------- MAIN PANEL ------------------- */
+        body {
             margin: 0;
-            padding: 8px 12px;
+            padding: 10px 14px;
             background-color: #1a1a24;
             color: #ffffff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;  /* aligning all elements */
-            flex-direction: column;
-            align-items: center;    /* centring */ 
-            gap: 10px;
+            display: flex;
+            align-items: center;
             user-select: none;
             overflow: hidden;
+            height: 100vh;
+            box-sizing: border-box;
         }
 
-        .top-bar {  /* top bar with principal buttons */ 
+        .top-bar {
             display: flex;
             flex-direction: row;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+            width: 100%;
         }
 
         .top-bar button {
             white-space: nowrap;
         }
 
-        button {    /* making a button */
+        button {
             background: #2b2b3d;
             color: #e0e0e0;
             border: 1px solid #44445a;
@@ -48,20 +44,19 @@
             transition: background 0.2s, transform 0.1s;
         }
 
-        button:hover {  /* pressed button */
+        button:hover {
             background: #3e3e57;
             color: #ffffff;
         }
 
-        button:active { /* activating a button */
+        button:active {
             transform: scale(0.97);
         }
         
-/* ----------------------------------------SECOND SCREEN-------------------------------------------------------------- */
-
-        .previewbox {   /* previewbox for second screen */
+        /* ------------------- SECOND SCREEN PREVIEW ------------------- */
+        .previewbox {
             width: 90px;
-            height: 50px;
+            height: 42px;
             background: #0d0d12;
             border: 1px dashed #555570;
             border-radius: 4px;
@@ -73,232 +68,53 @@
             text-align: center;
         }
 
-/* ----------------------------------------SAVE AND QUIT BUTTON-------------------------------------------------------------- */
-
-        .danger-btn {   /* quitting button */
+        /* ------------------- SAVE AND QUIT ------------------- */
+        .danger-btn {
             background: #5a1e24;
             border-color: #802830;
-            margin-left: auto; /* pushing to the right of the panel */
+            margin-left: auto; /* Spinge il pulsante tutto a destra */
         }
 
-        .danger-btn:hover { /* pressed quitting button */
+        .danger-btn:hover {
             background: #7a2830;
         }
-
-/* ----------------------------------------SPOTIFY FEATURES-------------------------------------------------------------- */
-
-        .spotify-container {    /* spotify box */
-            background: #121216;
-            border: 1px solid #282833;
-            border-radius: 8px;
-            padding: 8px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .spotify-controls { /* spotify commands */
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .spotify-input {
-            flex: 1;
-            background: #232330;
-            border: 1px solid #404055;
-            color: #fff;
-            padding: 6px 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            outline: none;
-        }
-
-        .btn-spotify {  /* button to open Spotify */
-            background: #1db954;
-            color: #000;
-            border: none;
-            font-weight: bold;
-        }
-
-        .btn-spotify:hover {
-            background: #1ed670;
-            color: #000;
-        }
-
-        .btn-loop {
-            background: #2b2b3d;
-            color: #888;
-            border: 1px solid #444;
-        }
-
-        .btn-loop.active {
-            background: #065f46;
-            color: #34d399;
-            border-color: #059669;
-        }
-
-        #spotify-embed-container {    /* box for songs */
-            width: 100%;
-            height: 360px;
-            border-radius: 8px;
-            border: none;
-            overflow: hidden;
-        }
-
-        #spotify-embed-container iframe {
-            border: none;
-            border-radius: 8px;
-        }
-
     </style>
 </head>
 
 <body>
 
-<!--------------------------------------MAIN BUTTONS-------------------------------------------------------->
+    <!-- MAIN BUTTONS BAR -->
     <div class="top-bar">
-        <button id="btn-word"> Notes </button>
-        <button id="btn-manual"> Manual PDF </button>
-        <button id="btn-screen2"> Player's Screen </button>
+        <button id="btn-word">📝 Notes</button>
+        <button id="btn-manuals">📖 Manuals</button>
+        <button id="btn-screen2">🖥️ Player's Screen</button>
 
-        <div class="previewbox">Player's Screen Preview</div>
+        <div class="previewbox">P2 Preview</div>
 
-        <button id="btn-quit" class="danger-btn"> Save and Quit </button>
-    </div>
-
-<!--------------------------------------SPOTIFY FEATURES-------------------------------------------------------->
-
-    <div class="spotify-container">
-        <div class="spotify-controls">
-            <input
-                type="text"
-                id="spotify-url-input"
-                class="spotify-input"
-                placeholder="Paste the link of the playlist..."
-                value="https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"
-            />
-            <button id="btn-load-playlist">Load</button>
-            <button id="btn-toggle-loop" class="btn-loop active">Loop: ON</button>
-            <button id="btn-open-spotify" class="btn-spotify">Open Spotify</button>
-            <button id="btn-login-spotify" class="btn-spotify">Login Spotify</button>
-        </div>
-
-        <div id="spotify-embed-container"></div>    <!--the box where spotify will spawn-->
+        <button id="btn-quit" class="danger-btn">❌ Save and Quit</button>
     </div>
 
     <script>
-        
         const { ipcRenderer } = require('electron');
 
-        const btnWord = document.getElementById('btn-word');    /* making the button for the notes */
-        const btnQuit = document.getElementById('btn-quit');    /* making the button for save and quit */
-        const btnOpenSpotify = document.getElementById('btn-open-spotify'); /* making the button to open spotify */
-        const btnLoadPlaylist = document.getElementById('btn-load-playlist');   /* making the button to load the playlist */
-        const btnToggleLoop = document.getElementById('btn-toggle-loop'); /* making the button to put a loop on one song*/
-        const spotifyInput = document.getElementById('spotify-url-input');  /* */
+        const btnWord = document.getElementById('btn-word');
+        const btnManuals = document.getElementById('btn-manuals');
+        const btnQuit = document.getElementById('btn-quit');
 
-        let spotifyController = null;
-        let isLoopEnable = true;
-        let isRewiding = false;
-
-        btnWord.addEventListener('click', () => {   /* send a message to main.js asking to open a document */
+        // Opening selector for Word file
+        btnWord.addEventListener('click', () => {
             ipcRenderer.send('open-notes-dialog');
         });
 
-        btnQuit.addEventListener('click', () => {   /* send a message to main.js asking to close all the windows, saving them */
-            ipcRenderer.send('save-and-quit', spotifyInput.value.trim());
-        })
-
-        btnToggleLoop.addEventListener('click', () => { /* changing the button loop */
-            isLoopEnable = !isLoopEnable;
-            if(isLoopEnable) {
-                btnToggleLoop.textContent = "Loop: ON";
-                btnToggleLoop.classList.add('active');
-            } else {
-                btnToggleLoop.textContent = "Loop: OFF";
-                btnToggleLoop.classList.remove('active');
-            }
+        // Opening selector for directory
+        btnManuals.addEventListener('click', () => {
+            ipcRenderer.send('open-manuals-dialog');
         });
 
-/*---------------------------------SPOTIFY FEATURES------------------------------------------------ */
-
-        window.onSpotifyIframeApiReady = (IFrameAPI) => {   //managing the api of spotify
-            const element = document.getElementById('spotify-embed-container');
-            const options = {
-                width: '100%',
-                height: 360,
-                uri: getSpotifyUri(spotifyInput.value.trim())
-            };
-
-            IFrameAPI.createController(element, options, (EmbedController) => {
-                spotifyController = EmbedController;
-
-                EmbedController.addListener('playback_update', e => {
-                    const { duration, position, isPaused } = e.data;
-
-                    if(isLoopEnable && !isPaused && duration > 0) {
-                        if( position >= duration - 900 && !isRewiding) {
-                            isRewiding = true;
-                            console.log("I'm rewinding...");
-                            EmbedController.seek(0);
-                            EmbedController.play();
-
-                            setTimeout(() => {
-                                isRewiding = false;
-                            }, 1500);
-                        }
-                    }
-                });
-            });
-        };
-
-        function getSpotifyUri(url) {   //taking tha playlist's url
-            const match = url.match(/playlist\/([a-zA-Z0-9]+)/);
-            if (match && match[1]) {
-                return `spotify:playlist:${match[1]}`;
-            }
-            return 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M';
-        }
-
-        function updatePlaylist (url) { //updating the url of the playlist
-            const uri = getSpotifyUri(url);
-            if (spotifyController) {
-                spotifyController.loadUri(uri);
-            }
-        }
-
-        btnLoadPlaylist.addEventListener('click', () => {   /* clicking the load button */
-            updatePlaylist(spotifyInput.value.trim());
+        // Save and quit
+        btnQuit.addEventListener('click', () => {
+            ipcRenderer.send('save-and-quit');
         });
-
-        spotifyInput.addEventListener('keypress', (e) => {
-            if(e.key === 'Enter') {
-                updatePlaylist(spotifyInput.value.trim());
-            }
-        });
-
-        btnOpenSpotify.addEventListener('click', () => {    /* clicking the button to opne spotify */
-            ipcRenderer.send('open-spotify-app', spotifyInput.value.trim());
-        });
-
-        document.getElementById('btn-login-spotify').addEventListener('click', () => {  /* clicking the button for the login in spotify */
-            ipcRenderer.send('open-spotify-login');
-        });
-
-/*-----------------------------RELOADING LAST SESSION-------------------------------------------*/
-
-        window.addEventListener('DOMContentLoaded', () => { /* asking the saved session */
-            ipcRenderer.send('main-window-ready');
-        });
-
-        ipcRenderer.on('load-saved-session', (event, sessionData) => {  /* using saved data, reaload spotify */
-            if(sessionData && sessionData.spotifyPlaylist) {
-                spotifyInput.value = sessionData.spotifyPlaylist;
-                updateSpotifyEmbed(sessionData.spotifyPlaylist);
-            }
-        });
-
     </script>
 </body>
 </html>

@@ -128,6 +128,9 @@
             const notesDisplay = document.getElementById('notes-display');
             const btnOpenWord = document.getElementById('btn-open-word');
 
+            let seasonToRestore = null; //variable to restore season
+            let sessionToRestore = null;    //variable to restore session
+
             btnOpenWord.addEventListener('click', () => {   //clicking the button, it send the signal to open Word
                 ipcRenderer.send('open-in-word');
             });
@@ -136,7 +139,14 @@
                 ipcRenderer.send('notes-window-ready');
             });
 
-            ipcRenderer.on('init-notes-html', (event, rawHtml) => { //loading the notes converted by mammoth
+            ipcRenderer.on('init-notes-html', (event, payload) => { //loading the notes converted by mammoth
+                let rawHtml = payload;
+                if (typeof payload === 'object' && payload.html) {
+                    rawHtml = payload.html;
+                    seasonToRestore = payload.savedSeason;
+                    sessionToRestore = payload.savedSession;
+                }
+
                 parseHtmltoCampaign(rawHtml);
                 populateSeason();
             });
@@ -164,7 +174,7 @@
                     else if (/^sessione/i.test(text)) { //controling sessions
                         currentSession = text.replace(/:$/, '').trim();
                         if (!currentSeason) {
-                            currentSeason = "Note Iniziali";
+                            currentSeason = "Initial Notes";
                             campaign[currentSeason] = {};
                         }
                         if (!campaign[currentSeason][currentSession]) {
@@ -174,11 +184,11 @@
 
                     else {  //all other strings
                         if (!currentSeason) {
-                            currentSeason = "Note Iniziali";
+                            currentSeason = "Initial Notes";
                             campaign[currentSeason] = {};
                         }
                         if (!currentSession) {
-                            currentSession = "Generale";
+                            currentSession = "General";
                             campaign[currentSeason][currentSession] = [];
                         }
                         
@@ -201,11 +211,17 @@
                 });
 
                 if(seasons.length > 0) {
-                    const defaultSeason = seasons.includes(currentSelectedSeason)   /* keeping the selected season */
-                        ? currentSelectedSeason
-                        : (seasons.find(s => s.toLowerCase().includes('stagione 1')) || seasons[0]);
-                    seasonSelect.value = defaultSeason;
-                    updateSessions(defaultSeason);
+                    let seasonToSelect = seasons[0];
+                    if (seasonToRestore && seasons.includes(seasonToRestore)) {
+                        seasonToSelect = seasonToRestore;
+                    } else if (seasons.includes(currentSelectedSeason)) {
+                        seasonToSelect = currentSelectedSeason;
+                    } else {
+                        const s1 =  seasons.find(s => s.toLowerCase().includes('stagione 1'));
+                        if ('s1') seasonToSelect = 1;
+                    }
+                    seasonSelect.value = seasonToSelect;
+                    updateSessions(seasonToSelect);
                 }
             }
 
@@ -222,14 +238,19 @@
                 });
 
                 if (sessions.length > 0) {
-                    const defaultSession = sessions.includes(currentSelectedSession)
-                        ? currentSelectedSession
-                        : sessions[0];
-
-                    sessionSelect.value = defaultSession;
-                    displayNotes(season, defaultSession);
+                    let sessionToSelect = sessions[0];
+                    if (sessionToRestore && sessions.includes(sessionToRestore)) {
+                        sessionToSelect = sessionToRestore;
+                        sessionToRestore = null;
+                        seasonToRestore = null;
+                    } else if (sessions.includes(currentSelectedSession)) {
+                        sessionToSelect = currentSelectedSession;
+                    }
+                    sessionSelect.value = sessionToSelect;
+                    displayNotes(season, sessionToSelect);
+                    notifySelection();
                 } else {
-                    notesDisplay.innerHTML = '<p style="color #777">Sessions not found.</p>'
+                    notesDisplay.innerHTML = '<p style="color #777"> not found.</p>'
                 }
             }
             
@@ -238,7 +259,7 @@
                 const points = (campaign[season] && campaign[season][session]) || [];
 
                 if (points.length === 0) {
-                    notesDisplay.innerHTML = '<p style="color: #777;">Note not found.</p>';
+                    notesDisplay.innerHTML = '<p style="color: #777;">Notes not found.</p>';
                     return;
                 }
 
@@ -255,12 +276,21 @@
                 });
             }
 
+            function notifySelection() {
+                ipcRenderer.send('save-notes-selection', {
+                    season: seasonSelect.value,
+                    session: sessionSelect.value
+                });
+            }
+
             seasonSelect.addEventListener('change', (e) => {
                 updateSessions(e.target.value);
+                notifySelection();
             });
 
             sessionSelect.addEventListener('change', (e) => {
                 displayNotes(seasonSelect.value, e.target.value);
+                notifySelection();
             });
         </script>
     </body>

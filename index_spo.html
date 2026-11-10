@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+
+<html lang="eng">
+<head>
+    <meta charset="UTF-8">
+    <title>DM CTRLPanel</title>
+
+    <style>
+
+/* ----------------------------------------MAIN BUTTONS-------------------------------------------------------------- */
+
+        body {  /* main panel */
+            margin: 0;
+            padding: 8px 12px;
+            background-color: #1a1a24;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;  /* aligning all elements */
+            flex-direction: column;
+            align-items: center;    /* centring */ 
+            gap: 10px;
+            user-select: none;
+            overflow: hidden;
+        }
+
+        .top-bar {  /* top bar with principal buttons */ 
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .top-bar button {
+            white-space: nowrap;
+        }
+
+        button {    /* making a button */
+            background: #2b2b3d;
+            color: #e0e0e0;
+            border: 1px solid #44445a;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button:hover {  /* pressed button */
+            background: #3e3e57;
+            color: #ffffff;
+        }
+
+        button:active { /* activating a button */
+            transform: scale(0.97);
+        }
+        
+/* ----------------------------------------SECOND SCREEN-------------------------------------------------------------- */
+
+        .previewbox {   /* previewbox for second screen */
+            width: 90px;
+            height: 50px;
+            background: #0d0d12;
+            border: 1px dashed #555570;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #8888aa;
+            text-align: center;
+        }
+
+/* ----------------------------------------SAVE AND QUIT BUTTON-------------------------------------------------------------- */
+
+        .danger-btn {   /* quitting button */
+            background: #5a1e24;
+            border-color: #802830;
+            margin-left: auto; /* pushing to the right of the panel */
+        }
+
+        .danger-btn:hover { /* pressed quitting button */
+            background: #7a2830;
+        }
+
+/* ----------------------------------------SPOTIFY FEATURES-------------------------------------------------------------- */
+
+        .spotify-container {    /* spotify box */
+            background: #121216;
+            border: 1px solid #282833;
+            border-radius: 8px;
+            padding: 8px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .spotify-controls { /* spotify commands */
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .spotify-input {
+            flex: 1;
+            background: #232330;
+            border: 1px solid #404055;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .btn-media {    /* spotify buttons */
+            background: #1e1e2d;
+            border: 1px solid #3d3d55;
+            padding: 7px 12px;
+            font-size: 14px;
+        }
+
+        .btn-media:hover {
+            background: #2d2d42;
+        }
+
+        .btn-play { /* spotify play button */
+            background: #1db954;
+            color: #000;
+            border: none;
+            font-weight: bold;
+        }
+
+        .btn-play:hover {
+            background: #1ed760;
+            color: #000;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<!--------------------------------------MAIN BUTTONS-------------------------------------------------------->
+    <div class="top-bar">   <!--top bar with main buttons-->
+        <button id="btn-word"> Notes </button> <!--notes button-->
+        <button id="btn-manual"> Manual PDFs </button>   <!--manuals button-->
+        <button id="btn-screen2"> Player's Screen </button> <!--player's screen button-->
+
+        <div class="previewbox">Player's Screen Preview</div>
+
+        <button id="btn-quit" class="danger-btn"> Save and Quit </button>   <!--save nad quit button-->
+    </div>
+
+<!--------------------------------------SPOTIFY FEATURES-------------------------------------------------------->
+
+    <div class="spotify-container"> <!--box for spotify's features-->
+        <div class="spotify-controls">  <!--box for spotify's buttons-->
+            <input
+                type="text"
+                id="spotify-url-input"
+                class="spotify-input"
+                placeholder="Paste the link of the playlist..."
+                value=""
+            />
+            <button id="btn-load-playlist">Load</button> <!--loading playlist button-->
+            <button id="btn-prev" class="btn-media" title="Previous Song">⏮</button> <!--button to choose the previous song-->
+            <button id="btn-play" class="btn-media" title="Play">⏯</button> <!--button to pause the song-->
+            <button id="btn-next" class="btn-media" title="Next Song">⏭</button> <!--button to choose the next song-->
+            <button id="btn-toggle-loop" class="btn-loop active">Loop: ON</button>  <!--loop button-->
+        </div>
+    </div>
+
+    <script>
+        
+        const { ipcRenderer } = require('electron');
+
+        const btnWord = document.getElementById('btn-word');    /* making the button for the notes */
+        const btnQuit = document.getElementById('btn-quit');    /* making the button for save and quit */
+        const btnLoadPlaylist = document.getElementById('btn-load-playlist');   /* making the button to load the playlist */
+        const spotifyInput = document.getElementById('spotify-url-input');  /* playlist's url */
+
+        //spotify control buttons
+        const btnPrev = document.getElementById('btn-prev');    /* making the button to choose the previous song */
+        const btnPlay = document.getElementById('btn-play');    /* making the button to pause the song */
+        const btnNext = document.getElementById('btn-next');    /* making the button to choose the next song */
+        const btnToggleLoop = document.getElementById('btn-toggle-loop'); /* making the button to put a loop on one song*/
+
+        let spotifyController = null;
+        let isLoopEnable = true;
+        let isRewiding = false;
+
+        btnWord.addEventListener('click', () => {   /* send a message to main.js asking to open a document */
+            ipcRenderer.send('open-notes-dialog');
+        });
+
+        btnQuit.addEventListener('click', () => {   /* send a message to main.js asking to close all the windows, saving them */
+            ipcRenderer.send('save-and-quit', spotifyInput.value.trim());
+        })
+
+        //spotify controls
+        btnPrev.addEventListener('click', () => {
+            ipcRenderer.send('spotify-control', 'prev');
+        });
+
+        btnPlay.addEventListener('click', () => {
+            ipcRenderer.send('spotify-control', 'playPause');
+        });
+
+        btnNext.addEventListener('click', () => {
+            ipcRenderer.send('spotify-control', 'next');
+        });
+
+        btnToggleLoop.addEventListener('click', () => { /* changing the button loop */
+            isLoopEnable = !isLoopEnable;
+            if(isLoopEnable) {
+                btnToggleLoop.textContent = "Loop: ON";
+                btnToggleLoop.classList.add('active');
+            } else {
+                btnToggleLoop.textContent = "Loop: OFF";
+                btnToggleLoop.classList.remove('active');
+            }
+            ipcRenderer.send('spotify-control', 'loop');
+        });
+
+/*---------------------------------SPOTIFY FEATURES------------------------------------------------ */
+
+        function getSpotifyUri(url) {   //taking tha playlist's url
+            const match = url.match(/playlist\/([a-zA-Z0-9]+)/);
+            if (match && match[1]) {
+                return `spotify:playlist:${match[1]}`;
+            }
+            return 'spotify:playlist:37i9dQZF1DXcBWIGoYBM5M';
+        }
+
+        function updatePlaylist (url) { //updating the url of the playlist
+            const uri = getSpotifyUri(url);
+            if (spotifyController) {
+                spotifyController.loadUri(uri);
+            }
+        }
+
+        btnLoadPlaylist.addEventListener('click', () => {   /* clicking the load button */
+            updatePlaylist(spotifyInput.value.trim());
+        });
+
+        spotifyInput.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') {
+                updatePlaylist(spotifyInput.value.trim());
+            }
+        });
+
+/*-----------------------------RELOADING LAST SESSION-------------------------------------------*/
+
+        window.addEventListener('DOMContentLoaded', () => { /* asking the saved session */
+            ipcRenderer.send('main-window-ready');
+        });
+
+        ipcRenderer.on('load-saved-session', (event, sessionData) => {  /* using saved data, reaload spotify */
+            if(sessionData && sessionData.spotifyPlaylist) {
+                spotifyInput.value = sessionData.spotifyPlaylist;
+                updateSpotifyEmbed(sessionData.spotifyPlaylist);
+            }
+        });
+
+    </script>
+</body>
+</html>
