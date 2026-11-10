@@ -70,6 +70,28 @@ function createWindow() {
                     notesWindow.loadFile('notes.html');
                 }
             }
+
+            if (data.manualsFolderPath && fs.existsSync(data.manualsFolderPath)) {
+                currentDirectoryPath = data.manualsFolderPath;
+                console.log("Reloading last manuals directory: ", currentDirectoryPath);
+
+                if(data.manualsDirectoryOpen) {
+                    manualsWindow = new BrowserWindow({ //making the manuals window
+                        x: 1090,
+                        y: 10,
+                        width: 450,
+                        height: 500,
+                        title: "Manuals",
+                        webPreferences: {
+                            nodeIntegration: true,
+                            contextIsolation: false
+                        }
+                    });
+
+                    manualsWindow.loadFile('manuals.html');
+                }
+            }
+
         } catch (err) {
             console.error("ERROR: not reloaded session: ", err);
         }
