@@ -5,43 +5,109 @@
         <meta charset = "UTF-8">
         <title>DM's Notes</title>
         <style>
+            * {
+                box-sizing: border-box;
+            }
+
+
             body {  /* main panel */
                 margin: 0;
                 padding: 5px;
-                background: #181820;
-                color: #eee;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                overflow: hidden;
+                background: radial-gradient(ellipse at center, #2a1f0e 0%, #110d05 100%);
+                color: #2c1a06;
+                font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
                 display: flex;
                 flex-direction: column;
                 height: 94vh;
                 gap: 12px;
+                user-select: none;
             }
 
             .controls { /* upper control panel */
-                display: flex;
-                gap: 15px;
-                background: #232330;
-                padding: 10px 15px;
-                border-radius: 8px;
+                flex-shrink: 0;
                 align-items: center;
+                display: flex;
+                gap: 10px;
+                padding: 8px 16px;
+                background: linear-gradient(to bottom, #1a0f04 0%, #251508 100%);
+                border-bottom: 2px solid #6b4820;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+                z-index: 100;
             }
 
-            label {
-                font-weight: bold;
-                font-size: 14px;
-                color: #bbb;
+            .controls label {
+                font-size: 12px;
+                font-weight: 700;
+                color: #c8963a;
+                text-transform: uppercase;
+                letter-spacing: 0.8px;
+                text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
             }
 
-            select {    /* scrolling menu */
-                background: #323244;
-                color: #fff;
-                border: 1px solid #505068;
-                padding: 8px 12px;
-                border-radius: 6px;
-                font-size: 14px;
-                cursor: pointer;
+            .controls select {
+                background: #1e1205;
+                border: 1px solid #7a5228;
+                border-radius: 4px;
+                color: #e8c87a;
+                padding: 4px 10px;
+                font-size: 12px;
+                font-family: inherit;
                 outline: none;
+                cursor: pointer;
+                transition: border-color 0.2s;
             }
+
+            .controls select:focus,
+            .controls select:hover {
+                border-color: #c89040;
+            }
+
+            .controls button {
+                background: linear-gradient(135deg, #5a3010 0%, #3a1e08 100%);
+                border: 1px solid #8a5a28;
+                color: #f0d090;
+                padding: 5px 14px;
+                border-radius: 5px;
+                font-size: 12px;
+                font-weight: 700;
+                font-family: inherit;
+                cursor: pointer;
+                letter-spacing: 0.3px;
+                transition:  all 0.2s;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+            }
+
+            .controls button:hover {
+                background: linear-gradient(135deg, #7a4218 0%, #5a2c0c 100%);
+                border-color: #c8782a;
+                color: #fff8e0;
+            }
+
+            .controls button:active {
+                transform: scale(0.97);
+            }
+
+            .scroll-area {
+                flex: 1;
+                overflow: hidden;
+                display: flex;
+                align-items: stretch;
+                justify-content: center;
+                padding: 20px 24px 16px;
+                position: relative;
+            }
+
+            .scroll-area::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: radial-gradient(ellipse at center, transparent 55%, rgba(10, 6, 2, 0.75) 100%);
+                pointer-events: none;
+                z-index: 10;
+            }
+
+
 
             #season-select { /* season's menu */
                 width: 80px;
@@ -73,20 +139,26 @@
 
             .notes-display {    /* display with notes */
                 flex: 1;
-                background: #20202c;
-                border: 1px solid #323244;
-                border-radius: 8px;
-                padding: 20px 25px;
+                position: relative;
+                background-image: repeating-linear-gradient(
+                    to bottom,
+                    transparent,
+                    transparent 27px,
+                    rgba(130, 85, 20, 0.12) 27px,
+                    rgba(130, 85, 20, 0.12) 28px
+                );
+                padding: 16px 28px 20px;
                 overflow-y: auto;   /* adding scroll if text is long */
-                line-height: 1.6;
+                z-index: 6;
             }
 
             .note-card {    /* notes block's style */
-                background: #292938;
-                margin-bottom: 12px;
-                padding: 12px 16px;
-                border-left: 4px solid #6366f1;
-                border-radius: 6px;
+                font-size: 13.5px;
+                line-height: 28px;
+                color: #fff;
+                margin: 0 0 2px 8px;
+                text-align: justify;
+                text-shadow: 0 0 1px rgba(100, 50, 5, 0.2);
             }
 
             .note-card ul, .note-card ol {  /* keeping original style */
@@ -95,11 +167,17 @@
             }
 
             .note-card li {
-                margin-bottom: 6px;
+                font-size: 13.5px;
+                line-height: 28px;
+                text-shadow: 0 0 1px rgba(100, 50, 5, 0.2);
+                padding-left: 4px;
+                position: relative;
             }
 
             .note-card strong { /* pointing out bold strings */
-                color: #60a5fa;
+                color: #bc0202;
+                font-size: 16px;
+                text-shadow: #c86969;
             }
         </style>
     </head>
