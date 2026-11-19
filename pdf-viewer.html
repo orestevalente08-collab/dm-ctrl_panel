@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+
+<html lang="eng">
+    <head>
+        <meta charset="UTF-8">
+        <title>Manual Viewer</title>
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+                user-select: none;
+            }
+
+            body {
+                background: #1a1a26;
+                color: #e0e0e0;
+                font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+                display: flex;
+                flex-direction: column;
+                height: 100vh;
+                overflow: hidden;
+            }
+
+            .toolbar {  /* top bar with tools */
+                height: 52px;
+                background: #12121c;
+                border-bottom: 1px solid #2e2e44;
+                display: flex;
+                align-items: center;
+                padding: 0 16px;
+                gap: 10px;
+                flex-shrink: 0;
+            }
+
+            .file-title {
+                font-size: 13px;
+                font-weight: 700;
+                color: #dfb15b;
+                max-width: 220px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                flex: 1;
+            }
+
+            .sep {
+                width: 1px;
+                height: 24px;
+                background: #2e2e44;
+                margin: 0 2px;
+            }
+
+            .page-nav {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+
+/*--------------------------------------MANAGING ARROWS NAVIGATION----------------------------------------------------------*/
+
+            .nav-arrow {
+                width: 28px;
+                height: 28px;
+                background: #2b2b3d;
+                border: 1px solid #44445c;
+                color: #cfcfe2;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 15px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.15s;
+            }
+            .nav-arrow:hover {
+                background: #3c3c54;
+                color: #fff;
+            }
+            .nav-arrow:disabled {
+                opacity: 0.35;
+                cursor: default;
+            }
+
+            .page-input {
+                width: 46px;
+                text-align: center;
+                background: #22222e;
+                border: 1px solid #44445c;
+                color: #fff;
+                border-radius: 5px;
+                padding: 4px;
+                font-size: 13px;
+                outline: none;
+                user-select: text;
+            }
+            .page-input:focus {
+                border-color: #dfb15b;
+            }
+
+            .page-total {
+                font-size: 12px;
+                color: #8888a0;
+            }
+
+/*--------------------------------------ZOOM CONTROLS----------------------------------------------------------*/
+
+            .zoom-controls {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+
+            .zoom-btn {
+                width: 26px;
+                height: 26px;
+                background: #2b2b3d;
+                border: 1px solid #44445c;
+                color: #cfcfe2;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 15px;
+                font-weight: 700;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.15s;
+            }
+            .zoom-btn:hover {
+                background: #3c3c54;
+            }
+
+            .zoom-label {
+                font-size: 12px;
+                color: #9898b0;
+                min-width: 44px;
+                text-align: center;
+            }
+
+/*--------------------------------------BOOKMARKS TOOLS----------------------------------------------------------*/
+
+            .btn-add-bm {
+                background: linear-gradient(135deg, #5a3a0a 0%, #3d2808 100%);
+                border: 1px solid #dfb15b;
+                color: #f5d78e;
+                padding: 6px 14px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 700;
+                cursor: pointer;
+                transition: all 0.2s;
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                flex-shrink: 0;
+            }
+            .btn-add-bm:hover {
+                background: linear-gradient(135deg, #7a4e10 0%, #5a3808 100%);
+            }
+
+            .content-area { /* content */
+                display: flex;
+                flex: 1;
+                overflow: hidden;
+            }
+
+            .bm-sidebar {   /* bookmarks bar */
+                width: 235px;
+                background: #0f0f1a;
+                border-right: 1px solid #1e1e30;
+                display: flex;
+                flex-direction: column;
+                flex-shrink: 0;
+            }
+
+            .bm-sidebar-header {
+                padding: 13px 16px 10px;
+                font-size: 12px;
+                font-weight: 700;
+                color: #dfb15b;
+                letter-spacing: 0.5px;
+                border-bottom: 1px solid #1e1e30;
+            }
+
+            .bm-list {
+                flex: 1;
+                overflow-y: auto;
+                padding: 4px 0;
+            }
+            .bm-list::-webkit-scrollbar { width: 4px;}
+            .bm-list::-webkit-scrollbar-track { background: #0f0f1a;}
+            .bm-list::-webkit-scrollbar-thumb {
+                background: #2a2a40;
+                border-radius: 2px;
+            }
+
+            .bm-item {
+                display: flex;
+                align-items: center;
+                padding: 8px 10px 8px 12px;
+                border-bottom: 1px solid #141424;
+                cursor: pointer;
+                transition: background 0.15s;
+                gap: 8px;
+            }
+            .bm-item:hover { background: #1a1a2c;}
+            .bm-item.on-page {
+                background: #162416;
+                border-left: 2px solid #4a9e4a;
+            }
+
+            .bm-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .bm-name {
+                font-size: 12px;
+                font-weight: 600;
+                color: #d0d0e8;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .bm-page {
+                font-size: 10px;
+                color: #666688;
+                margin-top: 2px;
+            }
+
+            .bm-del {
+                width: 20px;
+                height: 20px;
+                border: none;
+                background: none;
+                color: #442244;
+                font-size: 14px;
+                line-height: 1;
+                cursor: pointer;
+                border-radius: 3px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                transition: all 0.15s;
+                padding: 0;
+            }
+            .bm-del:hover {
+                background: #441a1a;
+                color: #ff7070;
+            }
+
+            .bm-empty {
+                padding: 22px 14px;
+                font-size: 11px;
+                color: #555570;
+                text-align: center;
+                line-height: 1.65;
+            }
+
+/*--------------------------------------PDF CANVAS AREA----------------------------------------------------------*/
+
+            .pdf-area {
+                flex: 1;
+                overflow: auto;
+                display: flex;
+                align-items: flex-start;
+                justify-content: center;
+                background: #22222e;
+                padding: 20px;
+            }
+            .pdf-area::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
+            }
+            .pdf-area::-webkit-scrollbar-track { background: #1a1a26;}
+            .pdf-area::-webkit-scrollbar-thumb {
+                background: #3a3a5a;
+                border-radius: 4px;
+            }
+
+            #pdf-canvas {
+                box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+                border-radius: 2px;
+                display: block;
+            }
+
+            .loading-pill {
+                position: fixed;
+                bottom: 18px;
+                right: 18px;
+                background: #3a3a5a;
+                color: #dfb15b;
+                padding: 7px 14px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 600;
+                display: none;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+            }
+
+/*--------------------------------------MODAL----------------------------------------------------------*/
+
+            .modal-overlay {
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.65);
+                align-items: center;
+                justify-content: center;
+                z-index: 100;
+                display: none;
+            }
+            .modal-overlay.open { display: flex;}
+
+            .modal-box {
+                background: #1e1e2e;
+                border: 1px solid #44445c;
+                border-radius: 10px;
+                padding: 28px 32px;
+                width: 370px;
+                box-shadow: 0 20px 80px rgba(0,0,0,0.85);
+            }
+
+            .modal-title {
+                font-size: 12px;
+                font-weight: 700;
+                color: #dfb15b;
+                margin-bottom: 4px;
+            }
+
+            .modal-sub {
+                font-size: 12px;
+                color: #8888a0;
+                margin-bottom: 18px;
+            }
+
+            .modal-input {
+                width: 100%;
+                background: #12121c;
+                border: 1px solid #44445c;
+                color: #fff;
+                border-radius: 6px;
+                padding: 10px 14px;
+                font-size: 14px;
+                outline: none;
+                transition: border-color 0.2s;
+                margin-bottom: 20px;
+                user-select: text;
+            }
+            .modal-input:focus {
+                border-color: #dfb15b;
+                box-shadow: 0 0  8px rgba(223, 177, 91, 0.25);
+            }
+
+            .modal-actions {
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+            }
+
+            .modal-cancel {
+                background: #2b2b3d;
+                border: 1px solid #44445c;
+                color: #cfcfe2;
+                padding: 8px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+            .modal-cancel:hover { background: #3a3a52;}
+
+            .modal-confirm {
+                background: linear-gradient(135deg, #b88628 0%, #875c13 100%);
+                border: 1px solid #dfb15b;
+                color: #fff;
+                padding: 8px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 700;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .modal-confirm:hover {
+                background: linear-gradient(135deg, #cf982e 0%, #9a6a18 100%);
+            }
+        </style>
+
+        <script> if (typeof module === 'object') {window._tmpMod = module; module = undefined; }</script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+        <script>
+            if (window._tmpMod) {module = window._tmpMod; window._tmpMod = undefined; }
+            if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        </script>
+
+    </head>
+
+    <body>
+
+        <!--TOOLS BAR-->
+        <div class="toolbar">
+            <div class="file-title" id="file-title">-</div>
+            <div class="sep"></div>
+            <div class="page-nav">
+                <button class="nav-arrow" id="btn-prev">‹</button>
+                <input type="number" class="page-input" id="page-input" value="1" min="1">
+                <span class="page-total" id="page-total">/ -</span>
+                <button class="nav-arrow" id="btn-next">›</button>
+            </div>
+            <div class="sep"></div>
+            <div class="zoom-controls">
+                <button class="zoom-btn" id="btn-zout">-</button>
+                <span class="zoom-label" id="zoom-label">100%</span>
+                <button class="zoom-btn" id="btn-zin">+</button>
+            </div>
+            <div class="sep"></div>
+            <button class="btn-add-bm" id="btn-add-bm">Add a Bookmarker</button>
+        </div>
+
+        <!--CONTENT-->
+        <div class="content-area">
+            
+            <!--BOOKMARKERS SIDEBAR-->
+            <div class="bm-sidebar">
+                <div class="bm-sidebar-header">Bookmarkers</div>
+                <div class="bm-list" id="bm-list">
+                    <div class="bm-empty">
+                        Bookmarks not found.<br><br>
+                        Add a Bookmarker to see it.
+                    </div>
+                </div>
+            </div>
+
+            <!--PDF RENDERING-->
+            <div class="pdf-area" id="pdf-area">
+                <canvas id="pdf-canvas"></canvas>
+            </div>
+        </div>
+
+        <!--LOADING LOCATOR-->
+        <div class="loading-pill" id="loading">Rendering...</div>
+
+        <!--ADD BOOKMARK-->
+        <div class="modal-overlay" id="modal">
+            <div class="modal-box">
+                <div class="modal-title">New Bookmarker</div>
+                <div class="modal-sub" id="modal-sub">Page 1</div>
+                <input type="text" class="modal-input" id="modal-input" placeholder="Name of the bookmark...">
+                <div class="modal-actions">
+                    <button class="modal-cancel" id="modal-cancel">Cancel</button>
+                    <button class="modal-confirm" id="modal-confirm">Save</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            const { ipcRenderer } = require('electron');
+            const path = require('path');
+            const fs = require('fs');
+
+            const ZOOM_STEPS = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5];
+
+            let pdf = null;
+            let currentPage = 1;
+            let totalPages = 1;
+            let currentScale = 1.0;
+            let currentFilePath = '';
+            let currentRenderTask = null;
+            let bookmarks = [];
+
+            const canvas = document.getElementById('pdf-canvas');
+            const ctx = canvas.getContext('2d');
+            const fileTitle = document.getElementById('file-title');
+            const pageInput = document.getElementById('page-input');
+            const pageTotal = document.getElementById('page-total');
+            const btnPrev = document.getElementById('btn-prev');
+            const btnNext = document.getElementById('btn-next');
+            const btnZin = document.getElementById('btn-zin');
+            const btnZout = document.getElementById('btn-zout');
+            const zoomLabel = document.getElementById('zoom-label');
+            const btnAddBm = document.getElementById('btn-add-bm');
+            const bmList = document.getElementById('bm-list');
+            const loadingEl = document.getElementById('loading');
+            const modal = document.getElementById('modal');
+            const modalSub = document.getElementById('modal-sub');
+            const modalInput = document.getElementById('modal-input');
+            const modalCancel = document.getElementById('modal-cancel');
+            const modalConfirm = document.getElementById('modal-confirm');
+
+            window.addEventListener('DOMContentLoaded', () => {
+                ipcRenderer.send('pdf-viewer-ready');
+            });
+
+            ipcRenderer.on('load-pdf', async (event, { filePath, page}) => {    //managing the signal to open PDF
+                currentFilePath = filePath;
+                currentPage = page || 1;
+                fileTitle.textContent = path.basename(filePath, path.extname(filePath));
+                document.title = path.basename(filePath);
+                await loadPdf(filePath);
+                await refreshSidebar();
+            });
+
+            async function loadPdf(filePath) {  //function to load the PDF
+                if (!window.pdfjsLib) {
+                    alert('ERROR: PDF.js not found. Verify your internet connection!');
+                    return;
+                }
+                try {
+                    showLoading(true);
+                    const data = new Uint8Array(fs.readFileSync(filePath));
+                    pdf = await pdfjsLib.getDocument({ data }).promise;
+                    totalPages = pdf.numPages;
+                    pageTotal.textContent = `/ ${totalPages}`;
+                    pageInput.max = totalPages;
+                    currentPage = Math.min(Math.max(currentPage, 1), totalPages);
+                    await renderPage(currentPage);
+                } catch (err) {
+                    console.error('ERROR: PDF not found: ', err);
+                }
+            }
+
+            async function renderPage(num) {    //function to render the page
+                if(!pdf) return;
+
+                if (currentRenderTask) {
+                    try {
+                        await currentRenderTask.cancel();
+                    } catch (err) {
+
+                    }
+
+                    currentRenderTask = null;
+                }
+
+                showLoading(true);
+
+                try {
+                    const page = await pdf.getPage(num);
+                    const viewport = page.getViewport({ scale: currentScale });
+                    const canvasEl = document.getElementById('pdf-canvas');
+
+                    if (!canvasEl) {
+                        console.error("ERROR: canvas element not found.");
+                        return;
+                    }
+
+                    const ctx2d = canvasEl.getContext('2d');
+                    if(!ctx2d) {
+                        console.error("ERROR: context 2d not found.");
+                        return;
+                    }
+
+                    canvasEl.width = Math.floor(viewport.width);
+                    canvasEl.height = Math.floor(viewport.height);
+
+                    const renderContext = {
+                        canvasContext: ctx2d,
+                        viewport: viewport
+                    };
+
+                    currentRenderTask = page.render(renderContext);
+                    await currentRenderTask.promise;
+
+                    currentPage = num;
+                    pageInput.value = num;
+                    btnPrev.disabled = currentPage <= 1;
+                    btnNext.disabled = currentPage >= totalPages;
+                    highlightSidebarPage();
+
+                } catch(err) {
+
+                    if(err && err.name === 'RenderingCancelledException') return;
+                    console.error('ERROR: page not rendered: ', err);
+
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            function showLoading(v) {
+                loadingEl.style.display = v ? 'block' : 'none';
+            }
+            
+            //-------------------------ZOOM TOOLS----------------------------------------
+            function setZoom(scale) {
+                currentScale = Math.max(0.5, Math.min(2.0, scale));
+                zoomLabel.textContent = Math.round(currentScale * 100) + '%';
+                renderPage(currentPage);
+            }
+
+            btnZin.addEventListener('click', () => {
+                const next = ZOOM_STEPS.find(s => s > currentScale);
+                if (next) setZoom(next);
+            });
+
+            btnZout.addEventListener('click', () => {
+                const prev = [...ZOOM_STEPS].reverse().find(s => s < currentScale);
+                if (prev) setZoom(prev);
+            });
+
+            //-------------------------PAGE NAVIGATION--------------------------------------------
+            btnPrev.addEventListener('click', () => { if (currentPage > 1) renderPage(currentPage-1)});
+
+            btnNext.addEventListener('click', () => { if (currentPage < totalPages) renderPage(currentPage + 1)});
+
+            pageInput.addEventListener('change', () => {
+                const v = parseInt(pageInput.value, 10);
+                if (!isNaN(v) && v>=1 && v <= totalPages) renderPage(v);
+                else pageInput.value = currentPage;
+            });
+
+            pageInput.addEventListener('keydown', e => {if (e.key === 'Enter') pageInput.blur();});
+
+            //-----------------------------------USING KEYBOARD---------------------------------------------------
+            window.addEventListener('keydown', e => {
+                if(e.target === pageInput || e.target === modalInput) return;
+
+                if(e.key === 'ArrowRight' || e.key === 'PageDown') {
+                    if(currentPage < totalPages) renderPage(currentPage + 1);
+                }
+
+                else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+                    if(currentPage > 1) renderPage(currentPage -1 );
+                }
+
+                else if(e.key === '+') btnZin.click();
+                else if (e.key === '-') btnZout.click();
+            });
+
+            //--------------------------------------BOOKMARK BAR-----------------------------------------------
+            async function refreshSidebar() {
+                if(!currentFilePath) return;
+                bookmarks = await ipcRenderer.invoke('get-bookmarks', currentFilePath);
+                renderSidebar();
+            }
+
+            function renderSidebar() {
+                bmList.innerHTML = '';
+
+                if(bookmarks.length === 0) {
+                    bmList.innerHTML = `
+                    <div class='bm-empty'>
+                        Bookmarks not found.<br><br>
+                        Add a Bookmarker to see it.
+                    </div>`;
+                    return;
+                }
+
+                bookmarks.forEach(bm => {
+                    const item = document.createElement('div');
+                    item.className = 'bm-item' + (bm.page === currentPage ? ' on-page' : '');
+                    item.dataset.id = bm.id;
+
+                    item.innerHTML = `
+                    <div class="bm-info">
+                        <div class="bm-name">${bm.name}</div>
+                        <div class="bm-page">Page ${bm.page}</div>
+                    </div>
+                    <button class="bm-del" title="Delete bookmarker">x</button>`;
+
+                    item.addEventListener('click', e => {
+                        if (e.target.classList.contains('bm-del')) return;
+                        renderPage(bm.page);
+                    });
+
+                    item.querySelector('.bm-del').addEventListener('click', async e => {
+                        e.stopPropagation();
+                        bookmarks = await ipcRenderer.invoke('delete-bookmark', {
+                            filePath: currentFilePath,
+                            id: bm.id
+                        });
+                        renderSidebar();
+                    });
+
+                    bmList.appendChild(item);
+                });
+            }
+
+            function highlightSidebarPage() {
+                bmList.querySelectorAll('.bm-item').forEach((item, i) => {
+                    item.classList.toggle('on-page', bookmarks[i]?.page === currentPage);
+                });
+            }
+
+            //---------------------------------ADDING BOOKMARK-----------------------------------------
+            btnAddBm.addEventListener('click', () => {
+                if (!pdf) return;
+                modalSub.textContent = `You're marking the ${currentPage} on ${totalPages}`;
+                modalInput.value = '';
+                modal.classList.add('open');
+                setTimeout(() => modalInput.focus(), 60);
+            });
+
+            modalCancel.addEventListener('click', () => modal.classList.remove('open'));
+            modal.addEventListener('click', e => {
+                if (e.target === modal) {
+                    modal.classList.remove('open');
+                }
+            });
+
+            async function saveBookmark() {
+                const name = modalInput.value.trim();
+                if (!name) {
+                    modalInput.focus();
+                    return;
+                }
+                modal.classList.remove('open');
+                bookmarks = await ipcRenderer.invoke('add-bookmark', {
+                    filePath: currentFilePath, name, page: currentPage
+                });
+                renderSidebar();
+            }
+
+            modalConfirm.addEventListener('click', saveBookmark);
+
+            modalInput.addEventListener('keydown', e => {
+                if (e.key === 'Enter') saveBookmark();
+                if (e.key === 'Escape') modal.classList.remove('open');
+            });
+
+            ipcRenderer.on('bookmarks-update', (event, { filePath, bookmarks: updated}) => {
+                if (filePath === currentFilePath) {
+                    bookmarks = updated;
+                    renderSidebar();
+                }
+            });
+        </script>
+    </body>
+</html>
+

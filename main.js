@@ -18,6 +18,7 @@ let reloadTimeout = null;
 let savedSeason = null; //saved season to remember it
 let savedSession = null;    //saved session to remember it
 
+let pendingPdfToLoad = null;
 const sessionFilePath = path.join(__dirname, 'session.json');
 
 // ---------------------------------------- MAIN CODE -------------------------------------------------
@@ -29,7 +30,6 @@ function createWindow() {
         y: 10,
         width: 650,
         height: 120,
-        alwaysOnTop: true,
         resizable: true,
         title: "DM-CTRLPanel",
         webPreferences: {
@@ -271,6 +271,97 @@ ipcMain.on('open-pdf-file', (event, fileName) => {
         shell.openPath(fullPdfPath);
     }
 })
+
+// ---------------------------------------- MANAGING BOOKMARKS -------------------------------------------------
+
+let pdfViewerWindow = null;
+const bookMarksFilePath = path.join(__dirname, 'bookmarks.json');   //making the new file to save bookmarks
+
+function loadBookmarks () { // loading saved bookmarks
+    if(!fs.existsSync(bookMarksFilePath)) return {};
+    try {
+        return JSON.parse(fs.readFileSync(bookMarksFilePath, 'utf-8'));
+    } catch (err) {
+        return {};
+    }
+}
+
+function saveBookMarks (data) { //adding bookmarks to the saved file
+    fs.writeFileSync(bookMarksFilePath, JSON.stringify(data, null, 2), 'utf-8');
+}
+
+// ---------------------------------------- IPC VIEWER -------------------------------------------------
+
+ipcMain.on('open-pdf-viewer', (event, { filePath, page }) => {
+    const targetPage = page || 1;
+
+    pendingPdfToLoad = { filePath: filePath, page: targetPage};
+
+    if (!pdfViewerWindow || pdfViewerWindow.isDestroyed()) {
+        pdfViewerWindow = new BrowserWindow({
+            x: 150,
+            y: 50,
+            alwaysOnTop: true,
+            width: 1050,
+            height: 760,
+            title:"PDF Viewer",
+            webPreferences: {
+                nodeIntegration: true,
+                contextIsolation: false
+            }
+        });
+
+        pdfViewerWindow.loadFile('pdf-viewer.html');
+
+    } else {
+        pdfViewerWindow.focus();
+        pdfViewerWindow.webContents.send('load-pdf', {filePath: filePath, page: targetPage});
+    }
+});
+
+ipcMain.on('pdf-viewer-ready', () => {
+    if (pendingPdfToLoad && pdfViewerWindow && !pdfViewerWindow.isDestroyed()) {
+        pdfViewerWindow.webContents.send('load-pdf', pendingPdfToLoad);
+        pendingPdfToLoad = null;
+    }
+});
+
+ipcMain.handle('get-bookmarks', (event, filePath) => {
+    const all = loadBookmarks();
+    return all[filePath] || [];
+});
+
+ipcMain.handle('add-bookmark', (event, {filePath, name, page}) => { //adding a bookmark and signalizing it to the window to refresh
+    const all = loadBookmarks();
+    if(!all[filePath]) all[filePath] = [];
+    all[filePath].push({id: Date.now().toString(), name, page});
+    all[filePath].sort((a, b) => a.page - b.page);
+    saveBookMarks(all);
+    const update = all[filePath];
+
+    if (manualsWindow && !manualsWindow.isDestroyed() && event.sender !== manualsWindow.webContents)
+        manualsWindow.webContents.send('bookmarks-update', { filePath, bookmarks: update});
+    if (pdfViewerWindow && !pdfViewerWindow.isDestroyed() && event.sender !== pdfViewerWindow.webContents)
+        pdfViewerWindow.webContents.send('bookmarks-update', { filePath, bookmarks: update});
+
+    return update;
+});
+
+ipcMain.handle('delete-bookmark', (event, { filePath, id}) =>  {    //delting a bookmark and signalizing it to the window to refresh
+    const all = loadBookmarks();
+    if (all[filePath]) {
+        all[filePath] = all[filePath].filter(b => b.id !== id);
+    }
+    saveBookMarks(all);
+    const update = all[filePath] || [];
+
+    if (manualsWindow && !manualsWindow.isDestroyed() && event.sender !== manualsWindow.webContents)
+        manualsWindow.webContents.send('bookmarks-update', { filePath, bookmarks: update});
+    if (pdfViewerWindow && !pdfViewerWindow.isDestroyed() && event.sender !== pdfViewerWindow.webContents)
+        pdfViewerWindow.webContents.send('bookmarks-update', { filePath, bookmarks: update});
+
+    return update;
+});
 
 // ---------------------------------------- SAVE AND QUIT -------------------------------------------------
 

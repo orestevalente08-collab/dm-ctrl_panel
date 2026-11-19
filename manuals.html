@@ -18,7 +18,7 @@
                 height: 100vh;
                 background: radial-gradient(circle at 50% 35%, #232334 0%, #111118 100%);
                 color: #e0e0e0;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                font-family: 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
                 display: flex;
                 flex-direction: column;
             }
@@ -330,6 +330,136 @@
                 opacity: 0.7;
             }
 
+            /*-----------------------BOOKMARKS BAR------------------------------*/
+            .content-row {
+                flex: 1;
+                display: flex;
+                overflow: hidden;
+            }
+
+            .bm-panel {
+                width: 240;
+                background: #0d0d18;
+                border-left: 1px solid #1e1e30;
+                display: flex;
+                font-size: 12px;
+                flex-direction: column;
+                flex-shrink: 0;
+            }
+
+            .bm-panel-header {
+                padding: 14px 16px 10px;
+                font-size: 12px;
+                font-weight: 700;
+                color: #dfb15b;
+                letter-spacing: 0.5px;
+                border-bottom: 1px solid #1a1a2c;
+            }
+
+            .bm-panel-book {
+                padding: 7px 14px;
+                font-size: 11px;
+                color: #7a7a90;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                border-bottom: 1px solid #161624;
+                font-style: italic;
+            }
+
+            .bm-panel-list {
+                flex: 1;
+                overflow-y: auto;
+            }
+            .bm-panel-list::-webkit-scrollbar { width: 4px; }
+            .bm-panel-list::-webkit-scrollbar-track { background: #0d0d18; }
+            .bm-panel-list::-webkit-scrollbar-thumb {
+                background: #2a2a40;
+                border-radius: 2px;
+            }
+
+            .bm-panel-item {
+                display: flex;
+                align-items: center;
+                padding: 8px 10px 8px 12px;
+                border-bottom: 1px solid #131322;
+                cursor: pointer;
+                transition: background 0.15s;
+                gap: 7px;
+            }
+            .bm-panel-item:hover { background: #181828;}
+
+            .bm-pi-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .bm-pi-name {
+                font-size: 12px;
+                font-weight: 600;
+                color: #cacae0;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .bm-pi-page {
+                font-size: 10px;
+                color: #555570;
+                margin-top: 2px;
+            }
+
+            .bm-pi-del {
+                width: 20px;
+                height: 20px;
+                border: none;
+                background: none;
+                color: #442244;
+                font-size: 14px;
+                line-height: 1;
+                cursor: pointer;
+                border-radius: 3px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+                transition: all 0.15s;
+                padding: 0;
+            }
+            .bm-pi-del:hover {
+                background: #441a1a;
+                color: #ff7070;
+            }
+
+            .bm-panel-empty {
+                padding: 20px 14px;
+                font-size: 11px;
+                color: #444460;
+                text-align: center;
+                line-height: 1.65;
+            }
+
+            .bm-panel-footer {
+                padding: 10px;
+                border-top: 1px solid #1a1a2c;
+            }
+
+            .bm-open-btn {
+                width: 100%;
+                background: linear-gradient(135deg, #5a3a0a 0%, #3d2808 100%);
+                border: 1px solid #dfb15b;
+                color: #f5d78e;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 12px;
+                font-weight: 700;
+                cursor: pointer;
+                transition: all 0.2s;
+            }
+            .bm-open-btn:hover {
+                background: linear-gradient(135deg, #7a4e10 0%, #5a3808 100%);
+            }
+
         </style>
 
         <!--Including PDF.js for electron-->
@@ -365,18 +495,31 @@
             <button id="btn-change-folder" class="btn-folder">Change Directory</button>
         </div>
         <!--SHELF AREA-->
-        <div class="stage-container" id="stage">
-            <button class="nav-btn nav-prev" id="btn-prev">‹</button>
-            <button class="nav-btn nav-next" id="btn-next">›</button>
+        <div class="content-row">
+            <div class="stage-container" id="stage">
+                <button class="nav-btn nav-prev" id="btn-prev">‹</button>
+                <button class="nav-btn nav-next" id="btn-next">›</button>
 
-            <div class="books-track" id="books-track"></div>
+                <div class="books-track" id="books-track"></div>
 
-            <div class="empty-shelf" id="empty-shelf">
-                <div class="empty-shelf-icon">📖</div>
-                <div id="empty-shelf-text">PDFs not found.</div>
+                <div class="empty-shelf" id="empty-shelf">
+                    <div class="empty-shelf-icon">📖</div>
+                    <div id="empty-shelf-text">PDFs not found.</div>
+                </div>
             </div>
 
+            <div class="bm-panel" id="bm-panel">
+                <div class="bm-panel-header">Bookmarks</div>
+                <div class="bm-panel-book" id="bm-panel-book">-</div>
+                <div class="bm-panel-list" id="bm-panel-list">
+                    <div class="bm-panel-empty">Select a manual</div>
+                </div>
+                <div class="bm-panel-footer">
+                    <button class="bm-open-btn" id="bm-open-btn">Open manual</button>
+                </div>
+            </div>
         </div>
+        
 
         <!--BOTTOM BAR-->
         <div class="bottom-bar">
@@ -404,6 +547,7 @@
             const counterBadge = document.getElementById('counter-badge');
             const searchInput = document.getElementById('search-input');
             const btnOpen = document.getElementById('btn-open');
+            const bmOpenBtn = document.getElementById('bm-open-btn');
             const btnPrev = document.getElementById('btn-prev');
             const btnNext = document.getElementById('btn-next');
             const btnChangeFolder = document.getElementById('btn-change-folder');
@@ -424,6 +568,12 @@
                 currentFolderPath = data.folderPath || '';
                 allFiles = data.files || [];
                 applyFilter();
+            });
+
+            ipcRenderer.on('bookmarks-updated', (event, { filePath }) => {
+                if (!currentFolderPath || filteredFiles.length === 0) return;
+                const currentFullPath = path.join(currentFolderPath, filteredFiles[currentIndex]);
+                if (filePath === currentFullPath) refreshBookmarksPanel();
             });
 
             searchInput.addEventListener('input', () => {
@@ -499,7 +649,7 @@
                 });
 
                 updateTransforms();
-
+                refreshBookmarksPanel();
             }
 
             function updateTransforms() {   //calculating 3D prospectives
@@ -553,15 +703,73 @@
                     currentIndex = newIndex;
                     updateTransforms();
                 }
+                refreshBookmarksPanel();
             }
 
-            function openSelectedPdf() {
+            function openSelectedPdf(page = 1) {
                 if (filteredFiles.length === 0) return;
                 const fileName = filteredFiles[currentIndex];
-                ipcRenderer.send('open-pdf-file', fileName);
+                const fullPath = path.join(currentFolderPath, fileName);
+                ipcRenderer.send('open-pdf-viewer', { filePath: fullPath, page: page});
             }
 
-            btnOpen.addEventListener('click', openSelectedPdf);
+            //-----------------------------BOOKMARKS PANEL-----------------------------------------
+            async function refreshBookmarksPanel() {
+                const panelBook = document.getElementById('bm-panel-book');
+                const panelList = document.getElementById('bm-panel-list');
+
+                if (filteredFiles.length === 0 || !currentFolderPath) {
+                    panelBook.textContent = '-';
+                    panelList.innerHTML = `<div class="bm-panel-empty">Select a manual from the shell.</div>`;
+                    return;
+                }
+
+                const fileName = filteredFiles[currentIndex];
+                const fullPath = path.join(currentFolderPath, fileName);
+                panelBook.textContent = fileName.replace(/\.[^/.]+$/, "");
+
+                const bms = await ipcRenderer.invoke('get-bookmarks', fullPath);
+                panelList.innerHTML = '';
+
+                if (bms.length === 0) {
+                    panelList.innerHTML = `
+                    <div class='bm-empty'>
+                        Bookmarks not found.<br><br>
+                        Add a Bookmarker to see it.
+                    </div>`;
+                    return;
+                }
+
+                bms.forEach(bm => {
+                    const item = document.createElement('div');
+                    item.className = 'bm-panel-item';
+                    item.innerHTML = `
+                        <div class="bm-pi-info">
+                            <div class="bm-pi-name">${bm.name}</div>
+                            <div class="bm-pi-page">Page ${bm.page}</div>
+                        </div>
+                        <button class="bm-pi-del" title="Delete">×</button>
+                    `;
+
+                    item.addEventListener('click', e => {
+                        if (e.target.classList.contains('bm-pi-del')) return;
+                        ipcRenderer.send('open-pdf-viewer', { filePath: fullPath, page: bm.page});
+                    });
+
+                    item.querySelector('.bm-pi-del').addEventListener('click', async e => {
+                        e.stopPropagation();
+                        await ipcRenderer.invoke('delete-bookmark', { filePath: fullPath, id: bm.id});
+                        refreshBookmarksPanel();
+                    });
+
+                    panelList.appendChild(item);
+                });
+            }
+
+            btnOpen.addEventListener('click', () => openSelectedPdf(1));
+            if(bmOpenBtn) {
+                bmOpenBtn.addEventListener('click', () => openSelectedPdf(1));
+            }
             btnPrev.addEventListener('click', () => selectIndex(currentIndex -1));
             btnNext.addEventListener('click', () => selectIndex(currentIndex +1));
 
