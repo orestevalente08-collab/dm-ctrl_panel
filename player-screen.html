@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="eng">
+    <head>
+        <meta charset="UTF-8">
+        <title>Players' Screen</title>
+
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+                user-select: none;
+            }
+
+            body {
+                width: 100vw;
+                height: 100vh;
+                overflow: hidden;
+                background-color: #000;
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: 'Palatino Linotype', Palatino, Georgia, serif;
+            }
+
+            /*-----------------------------DINAMYC BACKGROUND---------------------------------*/
+            .bg-default {
+                position: absolute;
+                inset: 0;
+                background: radial-gradient(circle to center, #1f1b2c 0%, #0a0812 100%);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                color: #dfb15b;
+                gap: 12px;
+                opacity: 0.6;
+            }
+
+            .bg-default-size {
+                font-size: 18px;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+            }
+
+            .bg-layer {
+                position: absolute;
+                inset: 0;
+                width: 100vw;
+                height: 100vh;
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                transition: background-image 0.5s ease-in-out;
+                z-index: 1;
+                filter: brightness(0.75);
+                display: none;
+            }
+
+            /*----------------------------IMAGE FOR PLAYERS-------------------------------*/
+            .foreground-layer {
+                position: relative;
+                z-index: 10;
+                max-width: 90vw;
+                max-height: 88vh;
+                border-radius: 8px;
+                box-shadow: 0 15px 50px rgba(0,0,0,0.9), 0 0 0 2px rgba(223, 177, 91, 0.4);
+                opacity: 0;
+                transform: scale(0.96);
+                transition: opacity 0.5s cubic-bezier(0.2, 0.9, 0.3, 1), transform 0.5s cubic-bezier(0.2, 0.9, 0.3, 1);
+                object-fit: contain;
+                display: none;
+            }
+
+            .foreground-layer.visible {
+                opacity: 1;
+                transform: scale(1);
+                display: block;
+            }
+
+            /*streamed screen*/
+            #shared-video {
+                position: absolute;
+                inset: 0;
+                width: 100vw;
+                height: 100vh;
+                object-fit: contain;
+                z-index: 50;
+                background: #000;
+                display: none;
+            }
+
+            /*blackout screen*/
+            #blackout-layer {
+                position: absolute;
+                inset: 0;
+                background: #000;
+                z-index: 1000;
+                display: none;
+            }
+
+            /*-------------------------HIDDEN BUTTONS--------------------------------*/
+            .hint-bar {
+                position: absolute;
+                bottom: 8px;
+                right: 12px;
+                font-size: 11px;
+                color: rgba(255, 255, 255, 0.3);
+                z-index: 100;
+                pointer-events: none;
+                transition: opacity 1s;
+            }
+        </style>
+
+    </head>
+
+    <body>
+        <!--BACKGROUND LEVEL-->
+        <div class="bg-default" id="bg-default">
+            <div class="bg-default-text">Welcome, Players!</div>
+        </div>
+
+        <div class="bg-layer" id="bg-layer"></div>
+
+        <img class="foreground-layer" id="fg-image" alt="Player View">
+
+        <video id="shared-video" autoplay playsinLine></video>
+
+        <div id="blackout-layer"></div>
+
+        <div class="hint-bar" id="hint-bar">Press f11 for full-screen.</div>
+
+        <script>
+            const { ipcRenderer } = require('electron');
+
+            const bgLayer = document.getElementById('bg-layer');
+            const bgDefault = document.getElementById('bg-default');
+            const fgImage = document.getElementById('fg-image');
+            const sharedVideo = document.getElementById('shared-video');
+            const blackoutLayer = document.getElementById('blackout-layer');
+            const hintBar = document.getElementById('hint-bar');
+
+            let currentStream = null;
+
+            setTimeout(() => { if (hintBar) hintBar.style.opacity = '0';}, 4000);
+
+            //signal to say that the screen is ready
+            window.addEventListener('DOMContentLoaded', () => {
+                ipcRenderer.send('player-window-ready')
+            });
+
+            //streaming window
+
+            ipcRenderer.on('start-live-stream', async (event, sourceId) => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        audio: false,
+                        video: {
+                            mandatory: {
+                                chromeMediaSource: 'desktop',
+                                chromeMediaSourceId: sourceId,
+                                minWidth: 1280,
+                                maxWidth: 1920,
+                                minHeight: 720,
+                                maxHeight: 1000
+                            }
+                        }
+                    });
+
+                    currentStream = stream;
+                    sharedVideo.srcObject = stream;
+                    sharedVideo.style.display = 'block';
+                } catch (err) {
+                    console.error("ERROR: not streaming: ", err);
+                }
+            });
+
+            ipcRenderer.on('stop-live-stream', () => {
+                if (currentStream) {
+                    currentStream.getTracks().forEach(t => t.stop());
+                    currentStream = null;
+                }
+                sharedVideo.style.display = 'none';
+                sharedVideo.srcObject = null;
+            })
+
+            //updating the state
+            ipcRenderer.on('update-player-view', (event, { bgPath, fgPath, blackout }) => {
+                if (bgPath) {
+                    bgLayer.style.backgroundImage = `url('file:///${bgPath.replace(/\\/g, '/')}')`;
+                    bgLayer.style.display = 'block';
+                    bgDefault.style.display = 'none';
+                } else {
+                    bgLayer.style.display = 'none';
+                    bgDefault.style.display = 'flex';
+                }
+
+                if (fgPath) {
+                    fgImage.src = `file:///${fgPath.replace(/\\/g, '/')}`;
+                    fgImage.classList.add('visible');
+                } else {
+                    fgImage.classList.remove('visible');
+                    setTimeout(() => {
+                        if(!fgImage.classList.contains('visible')) fgImage.src = '';
+                    }, 400);
+                }
+
+                if(blackout !== undefined) {
+                    blackoutLayer.style.display = blackout ? 'block' : 'none';
+                }
+            });
+
+            window.addEventListener('dblclick', () => {
+                ipcRenderer.send('toggle-player-fullscreen');
+            });
+        </script>
+        
+    </body>
+
+</html>

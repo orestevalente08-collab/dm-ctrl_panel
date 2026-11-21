@@ -10,6 +10,8 @@
             margin: 0;
             padding: 10px 14px;
             background-color: #1a1a24;
+            flex-direction: column;
+            border-radius: 6px;
             color: #ffffff;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
@@ -54,11 +56,19 @@
         }
         
         /* ------------------- SECOND SCREEN PREVIEW ------------------- */
+        .preview-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
         .previewbox {
-            width: 90px;
-            height: 42px;
-            background: #0d0d12;
-            border: 1px dashed #555570;
+            position: relative;
+            width: 600px;
+            height: 340px;
+            background: #000;
+            border: 2px dashed #555570;
             border-radius: 4px;
             display: flex;
             align-items: center;
@@ -66,13 +76,91 @@
             font-size: 10px;
             color: #8888aa;
             text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .previewbox:hover {
+            border-color: #dfb15b;
+        }
+
+        .preview.dragover {
+            border-color: #4cd964;
+            box-shadow: 0 0 10px rgba(76, 217, 100, 0.5);
+        }
+
+        .mini-default {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle to center, #1f1b2c 0%, #0a0812 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            gap: 3px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            opacity: 0.8;
+            color: #dfb15b;
+            opacity: 0.7;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .mini-bg {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            filter: brightness(0.75);
+            display: none;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .mini-fg {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 2px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.8);
+            z-index: 3;
+            display: none;
+            pointer-events: none;
+        }
+
+        /* X button to cancel image */
+        .btn-clear-image {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 16px;
+            background: rgba(180, 40, 40, 0.85);
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            font-size: 10px;
+            line-height: 1;
+            padding: 0;
+            cursor: pointer;
+            display: none;
+            z-index: 10;
+        }
+        .btn-clear-image:hover {
+            background: #ff3b30;
+        }
+
+        .preview-hint {
+            font-size: 10px;
+            color: #8888aa;
+            margin-top: 2px;
         }
 
         /* ------------------- SAVE AND QUIT ------------------- */
         .danger-btn {
             background: #5a1e24;
             border-color: #802830;
-            margin-left: auto; /* Spinge il pulsante tutto a destra */
         }
 
         .danger-btn:hover {
@@ -85,21 +173,40 @@
 
     <!-- MAIN BUTTONS BAR -->
     <div class="top-bar">
-        <button id="btn-word">📝 Notes</button>
-        <button id="btn-manuals">📖 Manuals</button>
-        <button id="btn-screen2">🖥️ Player's Screen</button>
-
-        <div class="previewbox">P2 Preview</div>
-
-        <button id="btn-quit" class="danger-btn">❌ Save and Quit</button>
+        <button id="btn-word">Notes</button>
+        <button id="btn-manuals">Manuals</button>
+        <button id="btn-screen2">Player's Screen</button>
+        <button id="btn-open-controller">Open Controller</button>
+        <button id="btn-quit" class="danger-btn">Save and Quit</button>
+    </div>
+        <!--PREVIEW WITH DRAG AND DROP-->
+    <div class="preview-container">
+        <div class="previewbox" id="previewbox" title="Drag and drop your image here or open it.">
+            <div class="mini-default" id="mini-default">Players</div>
+            <div class="mini-bg" id="mini-bg"></div>
+            <img class="mini-fg" id="mini-fg" alt="Preview FG">
+            <button class="btn-clear-image" id="btn-clear-image" title="Hid the image">x</button>   <!--delete image button-->
+        </div>
+        <div class="preview-hint">Double click to open the controller</div>
     </div>
 
+
     <script>
-        const { ipcRenderer } = require('electron');
+        const electron = require('electron');
+        const ipcRenderer = electron.ipcRenderer;
+        const webUtils = electron.webUtils;
 
         const btnWord = document.getElementById('btn-word');
         const btnManuals = document.getElementById('btn-manuals');
+        const btnScreen2 = document.getElementById('btn-screen2');
+        const btnOpenController = document.getElementById('btn-open-controller');
         const btnQuit = document.getElementById('btn-quit');
+
+        const previewbox = document.getElementById('previewbox');
+        const miniDefault = document.getElementById('mini-default');
+        const miniBg = document.getElementById('mini-bg');
+        const miniFg = document.getElementById('mini-fg');
+        const btnClearImage = document.getElementById('btn-clear-image');
 
         // Opening selector for Word file
         btnWord.addEventListener('click', () => {
@@ -111,9 +218,86 @@
             ipcRenderer.send('open-manuals-dialog');
         });
 
+        // Activating the second screen
+        btnScreen2.addEventListener('click', () => {
+            ipcRenderer.send('toggle-player-screen')
+        });
+
         // Save and quit
         btnQuit.addEventListener('click', () => {
             ipcRenderer.send('save-and-quit');
+        });
+
+        // opening the controller window
+        btnOpenController.addEventListener('click', () => {
+            ipcRenderer.send('open-player-controller');
+        });
+
+        previewbox.addEventListener('dblclick', () => {
+            ipcRenderer.send('open-player-controller');
+        });
+
+        btnClearImage.addEventListener('click', (e) => {
+            e.stopPropagation();
+            ipcRenderer.send('clear-player-foreground');
+        });
+
+        //-----------------------------DRAG AND DROP PREVIEWBOX------------------------------------------
+        window.addEventListener('dragover', (e) => e.preventDefault(), false);
+        window.addEventListener('drop', (e) => e.preventDefault(), false);
+
+        previewbox.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.dataTransfer.dropEffect = 'copy';
+            previewbox.classList.add('dragover');
+        });
+
+        previewbox.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            previewbox.classList.remove('dragover');
+        });
+
+        previewbox.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            previewbox.classList.remove('dragover');
+
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const file = e.dataTransfer.files[0];
+                //compatibility with all versions of electron
+                const filePath = (webUtils && webUtils.getPathForFile) ? webUtils.getPathForFile(file) : file.path;
+
+                if (filePath) ipcRenderer.send('set-player-foreground', filePath);
+            }
+        });
+
+        //live players' screen
+
+        ipcRenderer.on('sync-preview', (event, { bgPath, fgPath }) => {
+            if (bgPath) {
+                miniBg.style.backgroundImage = `url('${bgPath.replace(/\\/g, '/')}')`;
+                miniBg.style.display = 'block';
+                miniDefault.style.display = 'none';
+            } else {
+                miniBg.style.display = 'none';
+                if (!fgPath) miniDefault.style.display = 'flex';
+            }
+            if (fgPath) {
+                miniFg.src = fgPath.replace(/\\/g, '/');
+                miniFg.style.display = 'block';
+                btnClearImage.style.display = 'block';
+                miniDefault.style.display = 'none';
+            } else {
+                miniFg.style.display = 'none';
+                btnClearImage.style.display = 'none';
+                if (!bgPath) miniDefault.style.display = 'flex';
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            ipcRenderer.send('main-window-ready');
         });
     </script>
 </body>

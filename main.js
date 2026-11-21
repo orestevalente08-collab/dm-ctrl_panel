@@ -9,6 +9,8 @@ const mammoth = require('mammoth'); //library to read word files
 let mainWindow;     // main window with all features
 let notesWindow;    // window with DM's notes
 let manualsWindow;  // window with manuals directory
+let playerWindow;   // window with the players' screen
+let playerControllerWindow; //window for the control of the players' screen
 
 let currentFilePath = null; // file word's path
 let currentDirectoryPath = null;    //manuals directory's path
@@ -18,7 +20,12 @@ let reloadTimeout = null;
 let savedSeason = null; //saved season to remember it
 let savedSession = null;    //saved session to remember it
 
-let pendingPdfToLoad = null;
+let pendingPdfToLoad = null;    // PDF to load
+
+let currentBgImage = null;  //background image for second screen
+let currentFgImage = null;  //added element in second screen
+let isBlackoutActive = false;  //if there's the blackout window
+
 const sessionFilePath = path.join(__dirname, 'session.json');
 
 // ---------------------------------------- MAIN CODE -------------------------------------------------
@@ -29,7 +36,7 @@ function createWindow() {
         x: 450,
         y: 10,
         width: 650,
-        height: 120,
+        height: 550,
         resizable: true,
         title: "DM-CTRLPanel",
         webPreferences: {
@@ -90,6 +97,10 @@ function createWindow() {
 
                     manualsWindow.loadFile('manuals.html');
                 }
+            }
+
+            if (data.bgImage && fs.existsSync(data.bgImage)) {
+                currentBgImage = data.bgImage;
             }
 
         } catch (err) {
@@ -164,6 +175,7 @@ ipcMain.on('open-notes-dialog', async () => {
         });
 
         notesWindow.loadFile('notes.html');
+        attachWindowDropDetection(notesWindow, 'Notes');
     } else {
         notesWindow.focus();
     }
@@ -236,6 +248,7 @@ function createOrFocusManualsWindow () {
         });
 
         manualsWindow.loadFile('manuals.html');
+        attachWindowDropDetection(manualsWindow, 'Manuals');
     } else {
         manualsWindow.focus();
         sendManualsList(currentDirectoryPath);
@@ -312,6 +325,7 @@ ipcMain.on('open-pdf-viewer', (event, { filePath, page }) => {
         });
 
         pdfViewerWindow.loadFile('pdf-viewer.html');
+        attachWindowDropDetection(pdfViewerWindow, 'PDFViewer');
 
     } else {
         pdfViewerWindow.focus();
@@ -363,6 +377,202 @@ ipcMain.handle('delete-bookmark', (event, { filePath, id}) =>  {    //delting a 
     return update;
 });
 
+//----------------------------------------------- PLAYERS SCREEN ------------------------------------------
+
+function sendPlayerState() {
+    const state = { 
+        bgPath: currentBgImage, 
+        fgPath: currentFgImage,
+        blackout: isBlackoutActive
+    };
+
+    if(playerWindow && !playerWindow.isDestroyed()) {
+        playerWindow.webContents.send('update-player-view', state);
+    }
+
+    if(mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('sync-preview', state);
+    }
+
+    if(playerControllerWindow && !playerControllerWindow.isDestroyed()) {
+        playerControllerWindow.webContents.send('sync-preview', state);
+    }
+}
+
+function createOrFocusPlayerWindow() {
+
+    if (!playerWindow || playerWindow.isDestroyed()) {
+        const { screen } = require('electron');
+        const displays = screen.getAllDisplays();
+
+        let targetDisplay = null;
+
+        //if there's a second monitor, open the window there
+        if (displays.length > 1) {
+            targetDisplay = displays[1];
+        } else {
+            return;
+        }
+
+        playerWindow = new BrowserWindow({
+            x: targetDisplay.bounds.x,
+            y: targetDisplay.bounds.y,
+            fullscreen: true,
+            frame: false,
+            alwaysOnTop: false,
+            width: targetDisplay.bounds.width,
+            height: targetDisplay.bounds.height,
+            title: "Players' screen",
+            webPreferences: {
+                nodeIntegration: true,
+                contextIsolation: false
+            }
+        });
+
+        playerWindow.loadFile('player-screen.html');
+
+        playerWindow.on('closed', () => {
+            playerWindow = null;
+        });
+
+    } else {
+        if (playerWindow.isMinimized()) playerWindow.restore();
+        playerWindow.focus();
+    }
+}
+
+//------------------------------------------IPC SECOND SCREEN-------------------------------------------
+
+ipcMain.on('toggle-player-screen', () => {
+    if(!playerWindow || playerWindow.isDestroyed())
+        createOrFocusPlayerWindow();
+    else
+        playerWindow.close();
+});
+
+ipcMain.on('player-window-ready', () => {
+    sendPlayerState();
+});
+
+ipcMain.on('toggle-player-fullscreen', () => {
+    if (playerWindow && !playerWindow.isDestroyed()) {
+        playerWindow.setFullScreen(!playerWindow.isFullScreen());
+    }
+});
+
+ipcMain.on('toggle-blackout', (event, active) => {
+    isBlackoutActive = active;
+    sendPlayerState();
+});
+
+//adding a new window in players' screen
+ipcMain.on('set-player-foreground', (event, filePath) => {
+    currentFgImage = filePath;
+
+    //if the window si not opened, open it
+    if(!playerWindow || playerWindow.isDestroyed()) {
+        createOrFocusPlayerWindow();
+    }
+    sendPlayerState();
+});
+
+//removing the last window
+ipcMain.on('clear-player-foreground', () => {
+    currentFgImage = null;
+    sendPlayerState();
+});
+
+//choosing a new background for second screen
+ipcMain.on('pick-player-background', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: "Choose the new background.",
+        filters: [{ name: "Pictures", extensions: ['jpg', 'jpeg', 'png', 'webp', 'bmp']}],
+        properties: ['openFile']
+    });
+
+    if(!result.canceled || result.filePaths.length > 0) {
+        currentBgImage = result.filePaths[0];
+        sendPlayerState();
+    }
+});
+
+//---------------------------------------CONTROLLER WINDOW------------------------------------------------------------------
+function openPlayerController () {
+    if(!playerControllerWindow || playerControllerWindow.isDestroyed()) {
+        playerControllerWindow = new BrowserWindow({
+            x: 200,
+            y: 80,
+            width: 980,
+            height: 620,
+            alwaysOnTop: true,
+            title: "Players' Screen - DM Vision",
+            webPreferences: {
+                nodeIntegration: true,
+                contextIsolation: false
+            }
+        });
+
+        playerControllerWindow.loadFile('player-controller.html');
+
+        playerControllerWindow.on('closed', () => {
+            playerControllerWindow = null;
+        });
+    } else {
+        playerControllerWindow.focus();
+    }
+}
+
+//--------------------------------------------IPC CONTROLLER----------------------------------------------------------
+ipcMain.on('open-player-controller', () => {
+    if (playerWindow && !playerWindow.isDestroyed()) {
+        openPlayerController();
+        createOrFocusPlayerWindow();
+    } else {
+        console.warn("ERROR: second screen not aviable.");
+    }
+    
+});
+
+ipcMain.handle('get-shareable-windows', async () => {
+    const { desktopCapturer } = require('electron');
+    const sources = await desktopCapturer.getSources({
+        types: ['window', 'screen'],
+        thumbnailSize: {
+            width: 300,
+            height: 180
+        }
+    });
+
+    return sources
+        .filter(s => !s.name.includes("Players' Screen") && !s.name.includes("Players' Screen - DM Vision"))
+        .map(s => ({
+            id: s.id,
+            name: s.name,
+            thumbnail: s.thumbnail.toDataURL()
+        }));
+});
+
+ipcMain.on('start-window-share', (event, sourceId) => {
+    if (!playerWindow || playerWindow.isDestroyed()) {
+        createOrFocusPlayerWindow();
+    }
+    if (playerWindow && !playerWindow.isDestroyed()) {
+        playerWindow.webContents.send('start-live-stream', sourceId);
+    }
+    if(playerControllerWindow && !playerControllerWindow.isDestroyed()) {
+        playerControllerWindow.webContents.send('start-live-stream', sourceId);
+    }
+});
+
+ipcMain.on('stop-window-share', () => {
+    if(playerWindow && !playerWindow.isDestroyed()) {
+        playerWindow.webContents.send('stop-live-stream');
+    }
+    if(playerControllerWindow && !playerControllerWindow.isDestroyed()) {
+        playerControllerWindow.webContents.send('stop-live-stream');
+    }
+});
+
 // ---------------------------------------- SAVE AND QUIT -------------------------------------------------
 
 ipcMain.on('save-and-quit', () => {
@@ -372,7 +582,8 @@ ipcMain.on('save-and-quit', () => {
         manualsDirectoryOpen: (manualsWindow && !manualsWindow.isDestroyed()),
         notesWindowOpen: (notesWindow && !notesWindow.isDestroyed()),
         savedSeason: savedSeason,
-        savedSession: savedSession
+        savedSession: savedSession,
+        bgImage: currentBgImage
     };
 
     try {
