@@ -6,6 +6,8 @@ const path = require('path');   //library to use paths
 const fs = require('fs');   //library to use file system
 const mammoth = require('mammoth'); //library to read word files
 
+let layout = null;  //size of windows
+
 let mainWindow;     // main window with all features
 let notesWindow;    // window with DM's notes
 let manualsWindow;  // window with manuals directory
@@ -36,17 +38,79 @@ let currentMusicFolderPath = null;  //music folder's path
 const sessionFilePath = path.join(__dirname, 'session.json');
 const initiativeFilePath = path.join(__dirname, 'initiative.json');
 
-//----------------------------------------------------------------------------
+//---------------------------------MANAGING SIZE OF WINDOWS-------------------------------------------
+//counting the perfect positions for windows
+function getLayoutMetrics() {
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { x, y, width, height} = primaryDisplay.workArea; //not include the application bar
+
+    //width of the 3 columns
+    const leftWidth = Math.round(width * 0.28);
+    const centerWindth = Math.round(width * 0.38);
+    const rightWidth = width - leftWidth - centerWindth;
+
+    //height for first column
+    const leftTopHeight = Math.round(height * 0.5);
+    const leftBottomHeight = height - leftTopHeight;
+
+    return {
+        //control panel
+        main: {
+            x: x + leftWidth,
+            y: y,
+            width: centerWindth,
+            height: Math.round(height * 0.75)
+        },
+        //notes
+        notes: {
+            x: x,
+            y: y,
+            width: leftWidth,
+            height: leftTopHeight
+        },
+        //initiative
+        initiative: {
+            x: x,
+            y: y + leftTopHeight,
+            width: leftWidth,
+            height: leftBottomHeight
+        },
+        //manuals
+        manuals: {
+            x: x + leftWidth + centerWindth,
+            y: y,
+            width: rightWidth,
+            height: height
+        },
+        //controller
+        controller: {
+            x: x + Math.round(width * 0.1),
+            y: y + Math.round(height * 0.05),
+            width: Math.round(width * 0.8),
+            height: Math.round(height * 0.88)
+        },
+        //pdfViewer
+        pdfViewer: {
+            x: x + Math.round(width * 0.12),
+            y: y + Math.round(height * 0.05),
+            width: Math.round(width * 0.76),
+            height: Math.round(height * 0.9)
+        }
+        
+
+    }
+}
 
 // ---------------------------------------- MAIN WINDOW -------------------------------------------------
 
 function createWindow() {
+    layout = getLayoutMetrics();
 
     mainWindow = new BrowserWindow({    // main bar with buttons
-        x: 480,
-        y: 0,
-        width: 700,
-        height: 580,
+        x: layout.main.x,
+        y: layout.main.y,
+        width: layout.main.width,
+        height: layout.main.height,
         resizable: true,
         title: "DM-CTRLPanel",
         webPreferences: {
@@ -74,10 +138,10 @@ function createWindow() {
                 // if teh notes window was closed, reopen it
                 if (data.notesWindowOpen) {
                     notesWindow = new BrowserWindow({
-                        x: 0,
-                        y: 0,
-                        width: 480,
-                        height: 520,
+                        x: layout.notes.x,
+                        y: layout.notes.y,
+                        width: layout.notes.width,
+                        height: layout.notes.height,
                         title: "DM's Notes",
                         webPreferences: {
                             nodeIntegration: true,
@@ -244,12 +308,14 @@ async function pickManualsFolder() {
 }
 
 function createOrFocusManualsWindow () {
+    layout = getLayoutMetrics();
+
     if (!manualsWindow || manualsWindow.isDestroyed()) {
         manualsWindow = new BrowserWindow({ //making the manuals window
-            x: 1180,
-            y: 0,
-            width: 740,
-            height: 1040,
+            x: layout.manuals.x,
+            y: layout.manuals.y,
+            width: layout.manuals.width,
+            height: layout.manuals.height,
             title: "Manuals",
             webPreferences: {
                 nodeIntegration: true,
@@ -315,17 +381,20 @@ function saveBookMarks (data) { //adding bookmarks to the saved file
 // ---------------------------------------- IPC VIEWER -------------------------------------------------
 
 ipcMain.on('open-pdf-viewer', (event, { filePath, page }) => {
+
+    layout = getLayoutMetrics();
+
     const targetPage = page || 1;
 
     pendingPdfToLoad = { filePath: filePath, page: targetPage};
 
     if (!pdfViewerWindow || pdfViewerWindow.isDestroyed()) {
         pdfViewerWindow = new BrowserWindow({
-            x: 310,
-            y: 50,
+            x: layout.pdfViewer.x,
+            y: layout.pdfViewer.y,
             alwaysOnTop: true,
-            width: 1300,
-            height: 950,
+            width: layout.pdfViewer.width,
+            height: layout.pdfViewer.height,
             title:"PDF Viewer",
             webPreferences: {
                 nodeIntegration: true,
@@ -524,12 +593,14 @@ if (fs.existsSync(initiativeFilePath)) {
 }
 
 function openInitiativeWindow() {
+    layout = getLayoutMetrics();
+
     if(!initiativeWindow || initiativeWindow.isDestroyed()) {
         initiativeWindow = new BrowserWindow ({
-            x: 0,
-            y: 520,
-            width: 480,
-            height: 520,
+            x: layout.initiative.x,
+            y: layout.initiative.y,
+            width: layout.initiative.width,
+            height: layout.initiative.height,
             resizable: true,
             alwaysOnTop: true,
             title: "Initiative Tracker",
@@ -571,12 +642,14 @@ ipcMain.on('save-initiative', (event, data) => {
 
 //---------------------------------------CONTROLLER WINDOW------------------------------------------------------------------
 function openPlayerController () {
+    layout = getLayoutMetrics();
+
     if(!playerControllerWindow || playerControllerWindow.isDestroyed()) {
         playerControllerWindow = new BrowserWindow({
-            x: 260,
-            y: 70,
-            width: 1400,
-            height: 900,
+            x: layout.controller.x,
+            y: layout.controller.y,
+            width: layout.controller.width,
+            height: layout.controller.height,
             title: "Players' Screen - DM Vision",
             webPreferences: {
                 nodeIntegration: true,
