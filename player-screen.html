@@ -60,22 +60,24 @@
 
             /*----------------------------IMAGE FOR PLAYERS-------------------------------*/
             .foreground-layer {
-                position: relative;
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
                 z-index: 10;
                 max-width: 90vw;
                 max-height: 88vh;
                 border-radius: 8px;
                 box-shadow: 0 15px 50px rgba(0,0,0,0.9), 0 0 0 2px rgba(223, 177, 91, 0.4);
                 opacity: 0;
-                transform: scale(0.96);
-                transition: opacity 0.5s cubic-bezier(0.2, 0.9, 0.3, 1), transform 0.5s cubic-bezier(0.2, 0.9, 0.3, 1);
+                transform-origin: center center;
+                transition: opacity 0.5s ease;
                 object-fit: contain;
                 display: none;
             }
 
             .foreground-layer.visible {
                 opacity: 1;
-                transform: scale(1);
                 display: block;
             }
 
@@ -87,8 +89,10 @@
                 height: 100vh;
                 object-fit: contain;
                 z-index: 50;
-                background: #000;
+                background: transparent;
                 display: none;
+                transform-origin: center center;
+                pointer-events: none;
             }
 
             /*blackout screen*/
@@ -293,6 +297,17 @@
                 } else {
                     initiativeBar.style.display = 'none';
                 }
+            });
+
+            ipcRenderer.on('apply-player-transform', (event, { normX, normY, scale }) => {
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+                const pxX = normX * screenWidth;
+                const pxY = normY * screenHeight;
+
+                const transformStr = `translate(${pxX}px, ${pxY}px) scale(${scale})`;
+                fgImage.style.transform = transformStr;
+                sharedVideo.style.transform = transformStr;
             });
 
             window.addEventListener('dblclick', () => {

@@ -143,6 +143,11 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                cursor: grab;
+            }
+
+            .viewport-box.panning {
+                cursor: grabbing;
             }
 
             .viewport-default {
@@ -313,6 +318,7 @@
         </style>
 
     </head>
+
     <body>
         <!--TOOLBAR-->
         <div class="toolbar">
@@ -330,10 +336,10 @@
 
         <div class="stage-area">
             <div class="viewport-box" id="viewport">
+                <div class="viewport-bg" id="vp-bg"></div>
                 <div class="viewport-default" id="vp-default">
                     <div>Players' Screen connected</div>
                 </div>
-                <div class="viewport-bg" id="vp-bg"></div>
                 <img class="viewport-fg" id="vp-fg" alt="Foreground">
                 <video class="viewport-video" id="vp-video" autoplay muted></video>
                 <div class="viewport-blackout" id="vp-blackout">Hidden Player Screen</div>
@@ -381,13 +387,24 @@
             let scale = 1;
             let panX = 0;
             let panY = 0;
-            let isPaning = false;
+            let isPanning = false;
             let startX = 0;
             let startY = 0;
 
             /*---------------------------------------------MODIFYING WINDOWS-------------------------------------------------------*/
-            function updateTransform() {
-                vpFg.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            function updateTransform(notifyPlayer = true) {
+                const transformStr = `translate(${panX}px, ${panY}px) scale(${scale})`;
+                vpFg.style.transform = transformStr;
+                vpVideo.style.transform = transformStr;
+
+                if(notifyPlayer) {
+                    const rect = viewport.getBoundingClientRect();
+                    const normX = rect.width > 0 ? (panX/rect.width) : 0;
+                    const normY = rect.height > 0 ? (panY/rect.height) : 0;
+
+                    //syncronizing with second screen
+                    ipcRenderer.send('sync-view-transform', { normX, normY, scale});
+                }
             }
 
             btnResetView.addEventListener('click', () => {
@@ -410,17 +427,26 @@
             //grabbing the image
             vpFg.addEventListener('mousedown', (e) => {
                 if(e.button === 0) {    //right mouse button
-                    isPaning = true;
+                    if(e.target.closest('.modal-overlay') || e.target.closest('button')) return;
+                    isPanning = true;
                     startX = e.clientX - panX;
                     startY = e.clientY - panY;
+                    viewport.classList.add('panning');
                 }
             });
 
             window.addEventListener('mousemove', (e) => {
-                if (isPaning) {
+                if (isPanning) {
                     panX = e.clientX - startX;
                     panY = e.clientY - startY;
                     updateTransform();
+                }
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (isPanning) {
+                    isPanning = false;
+                    viewport.classList.remove('panning')
                 }
             });
 

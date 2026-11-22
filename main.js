@@ -29,6 +29,7 @@ let pendingPdfToLoad = null;    // PDF to load
 let currentBgImage = null;  //background image for second screen
 let currentFgImage = null;  //added element in second screen
 let isBlackoutActive = false;  //if there's the blackout window
+let currentViewTransform = { normX: 0, normY: 0, scale: 1}; //position and zoom for second screen
 
 let currentInitiativeData = {list: [], round: 1, activeIndex: 0, isVisible: false }; //to keep initiative
 let isInitiativeVisibleOnScreen = false;    //if there's the initiative window
@@ -544,16 +545,6 @@ ipcMain.on('toggle-blackout', (event, active) => {
     sendPlayerState();
 });
 
-//adding a ping from the controller to the second screen
-ipcMain.on('send-dm-ping', (event, { x, y }) => {
-    if(playerWindow && !playerWindow.isDestroyed()) {
-        playerWindow.webContents.send('show-ping', {x, y});
-    }
-    if(playerControllerWindow && !playerControllerWindow.isDestroyed()) {
-        playerControllerWindow.webContents.send('show-ping', {x, y});
-    }
-});
-
 //adding a new window in players' screen
 ipcMain.on('set-player-foreground', (event, filePath) => {
     currentFgImage = filePath;
@@ -568,7 +559,11 @@ ipcMain.on('set-player-foreground', (event, filePath) => {
 //removing the last window
 ipcMain.on('clear-player-foreground', () => {
     currentFgImage = null;
+    currentViewTransform = { normX: 0, normY: 0, scale: 1};
     sendPlayerState();
+    if(playerWindow && !playerWindow.isDestroyed()) {
+        playerWindow.webContents.send('apply-player-transform', currentViewTransform);
+    }
 });
 
 //choosing a new background for second screen
@@ -585,6 +580,13 @@ ipcMain.on('pick-player-background', async () => {
     }
 });
 
+//syncronizing transforms of windows
+ipcMain.on('sync-view-transform', (event, transformData) => {
+    currentViewTransform = transformData;
+    if(playerWindow && !playerWindow.isDestroyed()) {
+        playerWindow.webContents.send('apply-player-transform', transformData);
+    }
+});
 //-----------------------------------------MANAGING INITIATIVE---------------------------------------------------
 if (fs.existsSync(initiativeFilePath)) {
     try {
