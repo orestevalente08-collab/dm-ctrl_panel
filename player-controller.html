@@ -74,6 +74,12 @@
                 transform: scale(0.97);
             }
 
+            .btn-initiative {
+                background: linear-gradient(135deg, #3a2b10 0%, #291e0a 100%);
+                border-color: #dfb15b;
+                color: #ffd97d;
+            }
+
             .btn-share {
                 background: linear-gradient(135deg, #1f4037 0%, #17332c 100%);
                 border-color: #2e8b57;
@@ -120,6 +126,7 @@
                 align-items: center;
                 justify-content: center;
                 background: #09090e;
+                position: relative;
             }
 
             .viewport-box {
@@ -179,6 +186,12 @@
                 border-radius: 4px;
                 box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
                 display: none;
+                transition: transform 0.08s ease-out;
+                cursor: grab;
+            }
+
+            .viewport-fg:active {
+                cursor: grabbing;
             }
 
             .viewport-video {
@@ -310,6 +323,7 @@
                 <button id="btn-change-bg">Change Background</button>
                 <button class="btn-share" id="btn-share">Share Window</button>
                 <button class="btn-blackout" id="btn-blackout">Hidding Player Screen</button>
+                <button id="btn-reset-view" title="Reset Zoom and Position">Reset View</button>
                 <button id="btn-cleaner" class="btn-danger">Clean Screen</button>
             </div>
         </div>
@@ -352,6 +366,7 @@
             const btnChangeBg = document.getElementById('btn-change-bg');
             const btnShare = document.getElementById('btn-share');
             const btnBlackout = document.getElementById('btn-blackout');
+            const btnResetView = document.getElementById('btn-reset-view');
             const btnClear = document.getElementById('btn-cleaner');
 
             const modalShare = document.getElementById('modal-share');
@@ -362,7 +377,55 @@
             let isBlackout = false;
             let activeStream = null;
 
-            /*---------------------------------------------DM BASIC TOOLS-------------------------------------------------------*/
+            //zoom variables
+            let scale = 1;
+            let panX = 0;
+            let panY = 0;
+            let isPaning = false;
+            let startX = 0;
+            let startY = 0;
+
+            /*---------------------------------------------MODIFYING WINDOWS-------------------------------------------------------*/
+            function updateTransform() {
+                vpFg.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            }
+
+            btnResetView.addEventListener('click', () => {
+                scale = 1;
+                panX = 0;
+                panY = 0;
+                updateTransform();
+            });
+
+            //zoom with the wheel
+            viewport.addEventListener('wheel', (e) => {
+                if(vpFg.style.display !== 'none') {
+                    e.preventDefault();
+                    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+                    scale = Math.min(Math.max(scale * zoomFactor, 0.5), 5);
+                    updateTransform();
+                }
+            }, { passive: false });
+
+            //grabbing the image
+            vpFg.addEventListener('mousedown', (e) => {
+                if(e.button === 0) {    //right mouse button
+                    isPaning = true;
+                    startX = e.clientX - panX;
+                    startY = e.clientY - panY;
+                }
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (isPaning) {
+                    panX = e.clientX - startX;
+                    panY = e.clientY - startY;
+                    updateTransform();
+                }
+            });
+
+            /*---------------------------------------BUTTON SIGNALS-----------------------------------------*/
+
             btnChangeBg.addEventListener('click', () => {
                 ipcRenderer.send('pick-player-background');
             });

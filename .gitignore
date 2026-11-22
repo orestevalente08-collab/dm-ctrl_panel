@@ -3,3 +3,4 @@ node_modules/
 dist/
 session.json
 bookmarks.json
+initiative.json

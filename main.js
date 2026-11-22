@@ -1,7 +1,7 @@
 // ---------------------------------------- LIBRARIES -------------------------------------------------
 
 //  app = main window, BrowserWindow = make windows, ipcMain = manage signals, dialog = open os's windows, shell = shell of the computer
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron'); //library to use electron
+const { app, BrowserWindow, ipcMain, dialog, shell, screen, desktopCapturer } = require('electron'); //library to use electron
 const path = require('path');   //library to use paths
 const fs = require('fs');   //library to use file system
 const mammoth = require('mammoth'); //library to read word files
@@ -11,6 +11,8 @@ let notesWindow;    // window with DM's notes
 let manualsWindow;  // window with manuals directory
 let playerWindow;   // window with the players' screen
 let playerControllerWindow; //window for the control of the players' screen
+let initiativeWindow;   //window to managing initiative
+let musicPlayerWindow;  //window to play music
 
 let currentFilePath = null; // file word's path
 let currentDirectoryPath = null;    //manuals directory's path
@@ -26,17 +28,25 @@ let currentBgImage = null;  //background image for second screen
 let currentFgImage = null;  //added element in second screen
 let isBlackoutActive = false;  //if there's the blackout window
 
-const sessionFilePath = path.join(__dirname, 'session.json');
+let currentInitiativeData = {list: [], round: 1, activeIndex: 0, isVisible: false }; //to keep initiative
+let isInitiativeVisibleOnScreen = false;    //if there's the initiative window
 
-// ---------------------------------------- MAIN CODE -------------------------------------------------
+let currentMusicFolderPath = null;  //music folder's path
+
+const sessionFilePath = path.join(__dirname, 'session.json');
+const initiativeFilePath = path.join(__dirname, 'initiative.json');
+
+//----------------------------------------------------------------------------
+
+// ---------------------------------------- MAIN WINDOW -------------------------------------------------
 
 function createWindow() {
 
     mainWindow = new BrowserWindow({    // main bar with buttons
-        x: 450,
-        y: 10,
-        width: 650,
-        height: 550,
+        x: 480,
+        y: 0,
+        width: 700,
+        height: 580,
         resizable: true,
         title: "DM-CTRLPanel",
         webPreferences: {
@@ -64,10 +74,10 @@ function createWindow() {
                 // if teh notes window was closed, reopen it
                 if (data.notesWindowOpen) {
                     notesWindow = new BrowserWindow({
-                        x: 10,
-                        y: 10,
-                        width: 450,
-                        height: 500,
+                        x: 0,
+                        y: 0,
+                        width: 480,
+                        height: 520,
                         title: "DM's Notes",
                         webPreferences: {
                             nodeIntegration: true,
@@ -163,10 +173,10 @@ ipcMain.on('open-notes-dialog', async () => {
 
     if (!notesWindow || notesWindow.isDestroyed()) {
         notesWindow = new BrowserWindow({
-            x: 10,
-            y: 10,
-            width: 450,
-            height: 500,
+            x: 0,
+            y: 0,
+            width: 460,
+            height: 510,
             title: "DM's Notes",
             webPreferences: {
                 nodeIntegration: true,
@@ -236,10 +246,10 @@ async function pickManualsFolder() {
 function createOrFocusManualsWindow () {
     if (!manualsWindow || manualsWindow.isDestroyed()) {
         manualsWindow = new BrowserWindow({ //making the manuals window
-            x: 1090,
-            y: 10,
-            width: 450,
-            height: 500,
+            x: 1180,
+            y: 0,
+            width: 740,
+            height: 1040,
             title: "Manuals",
             webPreferences: {
                 nodeIntegration: true,
@@ -248,7 +258,6 @@ function createOrFocusManualsWindow () {
         });
 
         manualsWindow.loadFile('manuals.html');
-        attachWindowDropDetection(manualsWindow, 'Manuals');
     } else {
         manualsWindow.focus();
         sendManualsList(currentDirectoryPath);
@@ -312,11 +321,11 @@ ipcMain.on('open-pdf-viewer', (event, { filePath, page }) => {
 
     if (!pdfViewerWindow || pdfViewerWindow.isDestroyed()) {
         pdfViewerWindow = new BrowserWindow({
-            x: 150,
+            x: 310,
             y: 50,
             alwaysOnTop: true,
-            width: 1050,
-            height: 760,
+            width: 1300,
+            height: 950,
             title:"PDF Viewer",
             webPreferences: {
                 nodeIntegration: true,
@@ -325,7 +334,6 @@ ipcMain.on('open-pdf-viewer', (event, { filePath, page }) => {
         });
 
         pdfViewerWindow.loadFile('pdf-viewer.html');
-        attachWindowDropDetection(pdfViewerWindow, 'PDFViewer');
 
     } else {
         pdfViewerWindow.focus();
@@ -383,7 +391,8 @@ function sendPlayerState() {
     const state = { 
         bgPath: currentBgImage, 
         fgPath: currentFgImage,
-        blackout: isBlackoutActive
+        blackout: isBlackoutActive,
+        initiativeData: currentInitiativeData
     };
 
     if(playerWindow && !playerWindow.isDestroyed()) {
@@ -411,6 +420,7 @@ function createOrFocusPlayerWindow() {
         if (displays.length > 1) {
             targetDisplay = displays[1];
         } else {
+            console.error("ERROR: you must to connect a second screen.");
             return;
         }
 
@@ -465,6 +475,16 @@ ipcMain.on('toggle-blackout', (event, active) => {
     sendPlayerState();
 });
 
+//adding a ping from the controller to the second screen
+ipcMain.on('send-dm-ping', (event, { x, y }) => {
+    if(playerWindow && !playerWindow.isDestroyed()) {
+        playerWindow.webContents.send('show-ping', {x, y});
+    }
+    if(playerControllerWindow && !playerControllerWindow.isDestroyed()) {
+        playerControllerWindow.webContents.send('show-ping', {x, y});
+    }
+});
+
 //adding a new window in players' screen
 ipcMain.on('set-player-foreground', (event, filePath) => {
     currentFgImage = filePath;
@@ -496,15 +516,67 @@ ipcMain.on('pick-player-background', async () => {
     }
 });
 
+//-----------------------------------------MANAGING INITIATIVE---------------------------------------------------
+if (fs.existsSync(initiativeFilePath)) {
+    try {
+        currentInitiativeData = JSON.parse(fs.readFileSync(initiativeFilePath, 'utf-8'));
+    } catch (err) {}
+}
+
+function openInitiativeWindow() {
+    if(!initiativeWindow || initiativeWindow.isDestroyed()) {
+        initiativeWindow = new BrowserWindow ({
+            x: 0,
+            y: 520,
+            width: 480,
+            height: 520,
+            resizable: true,
+            alwaysOnTop: true,
+            title: "Initiative Tracker",
+            webPreferences: {
+                nodeIntegration: true,
+                contextIsolation: false
+            }
+        });
+
+        initiativeWindow.loadFile('initiative.html');
+
+        initiativeWindow.on('closed', () => {
+            initiativeWindow = null;
+        });
+    } else {
+        if (initiativeWindow.isMinimized()) initiativeWindow.restore();
+        initiativeWindow.focus();
+    }
+}
+
+//---------------------------------------IPC INITIATIVE--------------------------------------------------------------------
+ipcMain.on('open-initiative-window', () => {
+    openInitiativeWindow();
+});
+
+ipcMain.handle('get-initiative', () => {
+    return currentInitiativeData;
+});
+
+ipcMain.on('save-initiative', (event, data) => {
+    currentInitiativeData = data;
+
+    try {
+        fs.writeFileSync(initiativeFilePath, JSON.stringify(currentInitiativeData, null, 2), 'utf-8');
+    }catch(err) {}
+
+    sendPlayerState();
+});
+
 //---------------------------------------CONTROLLER WINDOW------------------------------------------------------------------
 function openPlayerController () {
     if(!playerControllerWindow || playerControllerWindow.isDestroyed()) {
         playerControllerWindow = new BrowserWindow({
-            x: 200,
-            y: 80,
-            width: 980,
-            height: 620,
-            alwaysOnTop: true,
+            x: 260,
+            y: 70,
+            width: 1400,
+            height: 900,
             title: "Players' Screen - DM Vision",
             webPreferences: {
                 nodeIntegration: true,
@@ -583,7 +655,8 @@ ipcMain.on('save-and-quit', () => {
         notesWindowOpen: (notesWindow && !notesWindow.isDestroyed()),
         savedSeason: savedSeason,
         savedSession: savedSession,
-        bgImage: currentBgImage
+        bgImage: currentBgImage,
+        musicFolder: currentMusicFolderPath
     };
 
     try {

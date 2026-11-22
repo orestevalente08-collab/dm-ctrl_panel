@@ -16,6 +16,7 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             align-items: center;
+            gap: 30px;
             user-select: none;
             overflow: hidden;
             height: 100vh;
@@ -26,6 +27,8 @@
             display: flex;
             flex-direction: row;
             align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
             gap: 12px;
             width: 100%;
         }
@@ -175,6 +178,7 @@
     <div class="top-bar">
         <button id="btn-word">Notes</button>
         <button id="btn-manuals">Manuals</button>
+        <button id="btn-initiative" style="border-color: #dfb15b; color: #ffd97d;">Initiative</button>
         <button id="btn-screen2">Player's Screen</button>
         <button id="btn-open-controller">Open Controller</button>
         <button id="btn-quit" class="danger-btn">Save and Quit</button>
@@ -199,6 +203,7 @@
         const btnWord = document.getElementById('btn-word');
         const btnManuals = document.getElementById('btn-manuals');
         const btnScreen2 = document.getElementById('btn-screen2');
+        const btnInitiative = document.getElementById('btn-initiative');
         const btnOpenController = document.getElementById('btn-open-controller');
         const btnQuit = document.getElementById('btn-quit');
 
@@ -221,6 +226,11 @@
         // Activating the second screen
         btnScreen2.addEventListener('click', () => {
             ipcRenderer.send('toggle-player-screen')
+        });
+
+        //opening initiative
+        btnInitiative.addEventListener('click', () => {
+            ipcRenderer.send('open-initiative-window');
         });
 
         // Save and quit

@@ -100,7 +100,66 @@
                 display: none;
             }
 
-            /*-------------------------HIDDEN BUTTONS--------------------------------*/
+            /* --------------------INITIATIVE WINDOW-------------------------------*/
+            .initiative-bar {
+                position: absolute;
+                top: 14px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: none;
+                align-items: center;
+                gap: 10px;
+                padding: 8px 16px;
+                background: rgba(20, 20, 30, 0.88);
+                border: 1px solid #dfb15b;
+                border-radius: 24px;
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.8);
+                z-index: 150;
+                max-width: 90vw;
+                overflow-x: auto;
+                backdrop-filter: blur(5px);
+            }
+
+            .intiative-round {
+                font-size: 13px;
+                font-weight: bold;
+                color: #dfb15b;
+                padding-right: 12px;
+                border-right: 1px solid #44445c;
+                white-space: nowrap;
+            }
+
+            .player-turn-card {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 4px 12px;
+                border-radius: 16px;
+                background: #272738;
+                border: 1px solid #44445c;
+                color: #ccc;
+                font-size: 13px;
+                white-space: nowrap;
+                transition: all 0.3s;
+            }
+
+            .player-turn-card.active {
+                border-color: #dfb15b;
+                background: linear-gradient(135deg #443515 0%, #291e0a 100%);
+                color: #ffd97d;
+                box-shadow: 0 0 10px rgba(223, 177, 91, 0.5);
+                font-weight: bold;
+            }
+
+            .player-turn-card.monster {
+                border-left: 3px solid #ff4d4d;
+            }
+
+            .initiative-card.pc {
+                border-left: 3px solid #4cd964;
+            }
+
+            /*-------------------------HIDDEN STRING--------------------------------*/
             .hint-bar {
                 position: absolute;
                 bottom: 8px;
@@ -127,6 +186,11 @@
 
         <video id="shared-video" autoplay playsinLine></video>
 
+        <div class="initiative-bar" id="initiative-bar">
+            <div class="initiative-round" id="initiative-round" style="color: #fff;">Round 1</div>
+            <div id="init-cards-container" style="display: flex; gap: 8px;"></div>
+        </div>
+
         <div id="blackout-layer"></div>
 
         <div class="hint-bar" id="hint-bar">Press f11 for full-screen.</div>
@@ -139,6 +203,9 @@
             const fgImage = document.getElementById('fg-image');
             const sharedVideo = document.getElementById('shared-video');
             const blackoutLayer = document.getElementById('blackout-layer');
+            const initiativeBar = document.getElementById('initiative-bar');
+            const initRound = document.getElementById('initiative-round');
+            const initCardsContainer = document.getElementById('init-cards-container');
             const hintBar = document.getElementById('hint-bar');
 
             let currentStream = null;
@@ -151,7 +218,6 @@
             });
 
             //streaming window
-
             ipcRenderer.on('start-live-stream', async (event, sourceId) => {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({
@@ -186,7 +252,7 @@
             })
 
             //updating the state
-            ipcRenderer.on('update-player-view', (event, { bgPath, fgPath, blackout }) => {
+            ipcRenderer.on('update-player-view', (event, { bgPath, fgPath, blackout, initiativeData }) => {
                 if (bgPath) {
                     bgLayer.style.backgroundImage = `url('file:///${bgPath.replace(/\\/g, '/')}')`;
                     bgLayer.style.display = 'block';
@@ -208,6 +274,24 @@
 
                 if(blackout !== undefined) {
                     blackoutLayer.style.display = blackout ? 'block' : 'none';
+                }
+
+                if(initiativeData && initiativeData.isVisible && initiativeData.list && initiativeData.list.length > 0) {
+                    initRound.textContent = `Round ${initiativeData.round || 1}`;
+                    initCardsContainer.innerHTML = '';
+
+                    initiativeData.list.forEach(c => {
+                        if(c.hidden) return;
+
+                        const card = document.createElement('div');
+                        card.className = `player-turn-card ${c.type} ${c.active ? 'active' : ''}`;
+                        card.innerHTML = `<span>#${c.init}</span> <b>${c.name}</b> ${c.active ? '★' : ''}`;
+                        initCardsContainer.appendChild(card);
+                    });
+
+                    initiativeBar.style.display = 'flex';
+                } else {
+                    initiativeBar.style.display = 'none';
                 }
             });
 

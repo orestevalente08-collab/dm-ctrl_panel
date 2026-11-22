@@ -439,27 +439,6 @@
                 line-height: 1.65;
             }
 
-            .bm-panel-footer {
-                padding: 10px;
-                border-top: 1px solid #1a1a2c;
-            }
-
-            .bm-open-btn {
-                width: 100%;
-                background: linear-gradient(135deg, #5a3a0a 0%, #3d2808 100%);
-                border: 1px solid #dfb15b;
-                color: #f5d78e;
-                padding: 8px 12px;
-                border-radius: 6px;
-                font-size: 12px;
-                font-weight: 700;
-                cursor: pointer;
-                transition: all 0.2s;
-            }
-            .bm-open-btn:hover {
-                background: linear-gradient(135deg, #7a4e10 0%, #5a3808 100%);
-            }
-
         </style>
 
         <!--Including PDF.js for electron-->
@@ -514,9 +493,6 @@
                 <div class="bm-panel-list" id="bm-panel-list">
                     <div class="bm-panel-empty">Select a manual</div>
                 </div>
-                <div class="bm-panel-footer">
-                    <button class="bm-open-btn" id="bm-open-btn">Open manual</button>
-                </div>
             </div>
         </div>
         
@@ -547,7 +523,6 @@
             const counterBadge = document.getElementById('counter-badge');
             const searchInput = document.getElementById('search-input');
             const btnOpen = document.getElementById('btn-open');
-            const bmOpenBtn = document.getElementById('bm-open-btn');
             const btnPrev = document.getElementById('btn-prev');
             const btnNext = document.getElementById('btn-next');
             const btnChangeFolder = document.getElementById('btn-change-folder');
@@ -733,7 +708,7 @@
 
                 if (bms.length === 0) {
                     panelList.innerHTML = `
-                    <div class='bm-empty'>
+                    <div class='bm-empty' style="margin-left: 10px;">
                         Bookmarks not found.<br><br>
                         Add a Bookmarker to see it.
                     </div>`;
@@ -767,9 +742,6 @@
             }
 
             btnOpen.addEventListener('click', () => openSelectedPdf(1));
-            if(bmOpenBtn) {
-                bmOpenBtn.addEventListener('click', () => openSelectedPdf(1));
-            }
             btnPrev.addEventListener('click', () => selectIndex(currentIndex -1));
             btnNext.addEventListener('click', () => selectIndex(currentIndex +1));
 
