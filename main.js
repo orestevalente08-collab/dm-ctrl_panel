@@ -35,6 +35,7 @@ let currentInitiativeData = {list: [], round: 1, activeIndex: 0, isVisible: fals
 let isInitiativeVisibleOnScreen = false;    //if there's the initiative window
 
 let currentMusicFolderPath = null;  //music folder's path
+const AUDIO_EXTS = ['.mp3', '.wav', '.ogg', '.flac', '.m4a', '.aac'];   //music extensions
 
 const sessionFilePath = path.join(__dirname, 'session.json');
 const initiativeFilePath = path.join(__dirname, 'initiative.json');
@@ -60,7 +61,7 @@ function getLayoutMetrics() {
             x: x + leftWidth,
             y: y,
             width: centerWindth,
-            height: Math.round(height * 0.75)
+            height: height
         },
         //notes
         notes: {
@@ -150,6 +151,11 @@ function createWindow() {
                         }
                     });
                     notesWindow.loadFile('notes.html');
+                }
+
+                //if there was amusic folder opened
+                if(data.musicFolder && fs.existsSync(data.musicFolder)) {
+                    currentMusicFolderPath = data.musicFolder;
                 }
             }
 
@@ -455,6 +461,9 @@ ipcMain.handle('delete-bookmark', (event, { filePath, id}) =>  {    //delting a 
     return update;
 });
 
+//----------------------------------MUSIC PLAYER--------------------------------------
+
+
 //----------------------------------------------- PLAYERS SCREEN ------------------------------------------
 
 function sendPlayerState() {
@@ -717,6 +726,46 @@ ipcMain.on('stop-window-share', () => {
     }
     if(playerControllerWindow && !playerControllerWindow.isDestroyed()) {
         playerControllerWindow.webContents.send('stop-live-stream');
+    }
+});
+
+//-------------------------------MANAGING MUSIC---------------------------------------------
+function getAudioFilesFromFolder(folderPath) {
+    if(!folderPath || !fs.existsSync(folderPath)) return [];
+
+    try{
+        const files = fs.readdirSync(folderPath);
+        return files
+            .filter(f => AUDIO_EXTS.includes(path.extname(f).toLowerCase()))
+            .map(f => ({
+                name: path.basename(f, path.extname(f)),
+                path: path.join(folderPath, f)
+            }));
+    } catch (err) {
+        return [];
+    }
+}
+
+//------------------------------------IPC MUSIC-----------------------------------
+ipcMain.on('pick-music-folder', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+        title: "Select the music folder",
+        properties: ['openDirectory']
+    });
+
+    if(result.canceled || result.filePaths.length === 0) return;
+    currentMusicFolderPath = result.filePaths[0];
+
+    const songs = getAudioFilesFromFolder(currentMusicFolderPath);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('init-music-list', songs);
+    }
+});
+
+ipcMain.on('request-saved-music', () => {
+    if (currentMusicFolderPath && mainWindow && !mainWindow.isDestroyed()) {
+        const songs = getAudioFilesFromFolder(currentMusicFolderPath);
+        mainWindow.webContents.send('init-music-list', songs);
     }
 });
 
