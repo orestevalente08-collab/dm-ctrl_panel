@@ -165,10 +165,10 @@ function createWindow() {
 
                 if(data.manualsDirectoryOpen) {
                     manualsWindow = new BrowserWindow({ //making the manuals window
-                        x: 1090,
-                        y: 10,
-                        width: 450,
-                        height: 500,
+                        x: layout.manuals.x,
+                        y: layout.manuals.y,
+                        width: layout.manuals.width,
+                        height: layout.manuals.height,
                         title: "Manuals",
                         webPreferences: {
                             nodeIntegration: true,
